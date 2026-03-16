@@ -22,9 +22,10 @@ export default function PublicNav() {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 bg-navy transition-all duration-200 ${
-          scrolled ? "border-b border-steel/30" : ""
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+          scrolled ? "border-b" : ""
         }`}
+        style={{ background: "#0c0c0c", borderColor: "rgba(255,255,255,0.07)" }}
         style={{ height: 64 }}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-12 h-full flex items-center justify-between">
@@ -60,7 +61,7 @@ export default function PublicNav() {
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 bg-navy flex flex-col px-8 pt-8">
+        <div className="fixed inset-0 z-50 flex flex-col px-8 pt-8" style={{ background: "#0c0c0c" }}>
           <div className="flex items-center justify-between mb-12">
             <Link href="/" className="font-inter font-bold text-cream text-lg">StaatWright</Link>
             <button

@@ -39,7 +39,8 @@
 
   body {
     font-family: var(--font-montserrat), sans-serif;
-    @apply bg-cream text-ink;
+    background: #0c0c0c;
+    color: #EAE4DC;
     line-height: 1.6;
   }
 
