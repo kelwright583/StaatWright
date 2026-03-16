@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background:           40 17% 95%;
+    --foreground:           0 0% 10%;
+    --card:                 0 0% 100%;
+    --card-foreground:      0 0% 10%;
+    --popover:              0 0% 100%;
+    --popover-foreground:   0 0% 10%;
+    --primary:              214 32% 17%;
+    --primary-foreground:   40 17% 95%;
+    --secondary:            40 17% 87%;
+    --secondary-foreground: 0 0% 10%;
+    --muted:                40 17% 87%;
+    --muted-foreground:     205 17% 43%;
+    --accent:               205 17% 43%;
+    --accent-foreground:    0 0% 100%;
+    --destructive:          0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border:               40 17% 87%;
+    --input:                40 17% 87%;
+    --ring:                 214 32% 17%;
+    --radius:               0rem;
+  }
+
+  * {
+    @apply border-border;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-montserrat), sans-serif;
+    @apply bg-cream text-ink;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  a {
+    text-decoration: none;
+  }
+}
+
+@layer utilities {
+  .label-caps {
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #5C6E81;
+    font-family: var(--font-montserrat), sans-serif;
+  }
+
+  .fade-up {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
