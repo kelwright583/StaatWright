@@ -16,19 +16,19 @@ export default function ServicesSection({ settings }: Props) {
   ];
 
   return (
-    <section id="services" className="py-24 md:py-32 px-6 md:px-12" style={{ background: "#0c0c0c" }}>
+    <section id="services" className="py-24 md:py-32 px-6 md:px-12" style={{ background: "#FFFFFF" }}>
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-6 mb-16">
-          <p className="label-caps" style={{ color: "#5C6E81" }}>What we do</p>
-          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+          <p className="label-caps">What we do</p>
+          <div className="flex-1 h-px bg-linen" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-linen">
           {services.map((s, i) => (
             <div key={s.num} className={`py-8 md:py-0 ${i > 0 ? "md:pl-10" : ""} ${i < 2 ? "md:pr-10" : ""}`}>
-              <span className="font-montserrat text-xs font-medium block mb-5" style={{ color: "#5C6E81" }}>{s.num}</span>
-              <h3 className="font-inter font-bold text-white text-xl mb-4">{s.title}</h3>
-              <p className="font-montserrat text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{s.body}</p>
+              <span className="font-montserrat text-xs font-medium text-steel block mb-5">{s.num}</span>
+              <h3 className="font-inter font-bold text-navy text-xl mb-4">{s.title}</h3>
+              <p className="font-montserrat text-sm text-ink/60 leading-relaxed">{s.body}</p>
             </div>
           ))}
         </div>
