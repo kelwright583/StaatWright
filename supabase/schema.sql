@@ -226,11 +226,26 @@ values ('StaatWright Solutions Ltd', 'contact@staatwright.co.za')
 on conflict do nothing;
 
 -- ── Seed: initial brands ────────────────────────────────────────
-insert into public.brands (name, public_one_liner, show_on_public_site, public_sort_order, status)
+insert into public.brands (name, public_one_liner, live_url, show_on_public_site, public_sort_order, status)
 values
-  ('CAIRN Solutions',          'Enterprise workforce management, simplified.',        true, 1, 'active'),
-  ('Concierge Styled',         'AI travel wardrobe planning — arrive impeccably.',   true, 2, 'active'),
-  ('Airshot Base',             'Podcast production management for studios.',          true, 3, 'in_development'),
-  ('KZN Youth Choirs',         'Administration platform for youth choral groups.',    true, 4, 'active'),
-  ('In the Absence of a Soapbox', 'Author site and memoir platform for Kel Wright.', true, 5, 'active')
+  ('Concierge Styled',
+   'AI-powered luxury travel stylist — curated outfits, activities, and packing lists for your destination.',
+   'https://conciergestyled.netlify.app',
+   true, 1, 'active'),
+  ('In the Absence of a Soapbox',
+   'Author platform for a debut memoir — part rant, part revelation, entirely a thirty-something single mum.',
+   'https://intheabsence.co.za',
+   true, 2, 'active'),
+  ('Airview',
+   'CSV-driven field performance tracker with compliance grids for sales reps and store visit management.',
+   null,
+   true, 3, 'active'),
+  ('KZN Youth Choir',
+   'Mobile-first platform for event management, communications, and content for a youth choral society.',
+   null,
+   true, 4, 'in_development'),
+  ('Refrag',
+   'Multi-platform workflow OS for assessors and inspectors — case management, evidence capture, and AI-powered report generation.',
+   null,
+   true, 5, 'in_development')
 on conflict do nothing;
