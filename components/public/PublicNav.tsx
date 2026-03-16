@@ -25,8 +25,7 @@ export default function PublicNav() {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
           scrolled ? "border-b border-linen" : ""
         }`}
-        style={{ background: "#F3F2EE" }}
-        style={{ height: 64 }}
+        style={{ background: "#FFFFFF", height: 64 }}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-12 h-full flex items-center justify-between">
           <Link href="/" className="font-inter font-bold text-navy text-lg tracking-wide">
@@ -52,9 +51,9 @@ export default function PublicNav() {
             onClick={() => setMobileOpen(true)}
             aria-label="Open navigation"
           >
-            <span className="block w-5 h-px bg-cream mb-1.5" />
-            <span className="block w-5 h-px bg-cream mb-1.5" />
-            <span className="block w-5 h-px bg-cream" />
+            <span className="block w-5 h-px bg-white mb-1.5" />
+            <span className="block w-5 h-px bg-white mb-1.5" />
+            <span className="block w-5 h-px bg-white" />
           </button>
         </div>
       </nav>
