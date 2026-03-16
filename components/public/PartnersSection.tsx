@@ -5,28 +5,30 @@ import { Brand } from "@/lib/types";
 
 interface Props { brands: Brand[]; }
 
-// ── Inline brand marks ──────────────────────────────────────────────────────
+// ── Refrag 5-bar watermark (matches actual brand logo from image) ────────────
 
-function RefragMark() {
+function RefragWatermark({ size = 200 }: { size?: number }) {
   const SLATE = "#30313A";
   const ACCENT = "#C72A00";
-  const w = 48, h = 48;
-  const bw = 7, gap = 3;
-  const barH = 18, barHTall = 26;
+  const NAVY  = "#1F2933";
+  const h = size * 0.55;
+  const bw = size * 0.13;
+  const gap = size * 0.05;
+  const barH = h * 0.55;
+  const barHTall = h;
   const totalW = bw * 5 + gap * 4;
-  const startX = (w - totalW) / 2;
+  const startX = (size - totalW) / 2;
 
   const bars = [
     { color: SLATE,  height: barH,     y: (h - barH) / 2 },
     { color: SLATE,  height: barH,     y: (h - barH) / 2 },
-    { color: SLATE,  height: barHTall, y: (h - barHTall) / 2 },
+    { color: ACCENT, height: barHTall, y: 0 },
     { color: ACCENT, height: barH,     y: (h - barH) / 2 },
-    { color: ACCENT, height: barH,     y: (h - barH) / 2 },
+    { color: NAVY,   height: barH,     y: (h - barH) / 2 },
   ];
 
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width={w} height={h} rx="4" fill="#F5F2EE"/>
+    <svg width={size} height={h} viewBox={`0 0 ${size} ${h}`} fill="none">
       {bars.map((bar, i) => (
         <rect
           key={i}
@@ -43,87 +45,223 @@ function RefragMark() {
   );
 }
 
-function SoapboxMark() {
-  return (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="4" fill="#1b2943"/>
-      <text
-        x="24" y="30"
-        fontFamily="Georgia, serif"
-        fontWeight="bold"
-        fontSize="13"
-        fill="#C07B2A"
-        textAnchor="middle"
-      >
-        ITA
-      </text>
-    </svg>
-  );
-}
+// ── Brand configuration — each entry makes the card feel like that build ─────
 
-// ── Brand accent + logo config ──────────────────────────────────────────────
-
-const BRAND_META: Record<string, {
+type BrandConfig = {
   accent: string;
-  logo?: string;
-  mark?: React.ReactNode;
-}> = {
+  bg?: string;
+  bgColor?: string;
+  headingFont: string;
+  bodyFont: string;
+  labelFont: string;
+  headingStyle?: "normal" | "italic";
+  overlay: number;       // 0-1 gradient darkness from bottom
+  topOverlay?: number;   // subtle top overlay
+};
+
+const BRAND_META: Record<string, BrandConfig> = {
   "Concierge Styled": {
     accent: "#cc8638",
-    logo: "/brands/concierge-icon.svg",
+    bg: "/brands/concierge-hero.jpg",
+    headingFont: "var(--font-playfair), Georgia, serif",
+    bodyFont: "var(--font-inter), sans-serif",
+    labelFont: "var(--font-inter), sans-serif",
+    headingStyle: "italic",
+    overlay: 0.82,
+    topOverlay: 0.15,
   },
   "In the Absence of a Soapbox": {
     accent: "#C07B2A",
-    mark: <SoapboxMark />,
-  },
-  "Airview": {
-    accent: "#8E44A3",
-    logo: "/brands/airview-icon.png",
+    bg: "/brands/soapbox-hero.png",
+    headingFont: "var(--font-playfair), Georgia, serif",
+    bodyFont: "var(--font-dm-sans), sans-serif",
+    labelFont: "var(--font-dm-sans), sans-serif",
+    headingStyle: "italic",
+    overlay: 0.78,
+    topOverlay: 0.2,
   },
   "KZN Youth Choir": {
     accent: "#1E3A8A",
-    logo: "/brands/kznchoir-logo.png",
+    bg: "/brands/kznchoir-hero.jpg",
+    headingFont: "var(--font-inter), sans-serif",
+    bodyFont: "var(--font-inter), sans-serif",
+    labelFont: "var(--font-inter), sans-serif",
+    overlay: 0.72,
+    topOverlay: 0.3,
+  },
+  "AirShot Base": {
+    accent: "#8E44A3",
+    bg: "/brands/airshot-base.png",
+    headingFont: "var(--font-space-grotesk), var(--font-inter), sans-serif",
+    bodyFont: "var(--font-inter), sans-serif",
+    labelFont: "var(--font-space-grotesk), sans-serif",
+    overlay: 0.65,
+    topOverlay: 0.1,
   },
   "Refrag": {
     accent: "#C72A00",
-    mark: <RefragMark />,
+    bgColor: "#1e1f26",
+    headingFont: "var(--font-inter), sans-serif",
+    bodyFont: "var(--font-inter), sans-serif",
+    labelFont: "var(--font-inter), sans-serif",
+    overlay: 0,
   },
 };
 
-// ── Sub-components ──────────────────────────────────────────────────────────
+const DEFAULT_CONFIG: BrandConfig = {
+  accent: "#5C6E81",
+  bgColor: "#1F2A38",
+  headingFont: "var(--font-inter), sans-serif",
+  bodyFont: "var(--font-montserrat), sans-serif",
+  labelFont: "var(--font-montserrat), sans-serif",
+  overlay: 0.6,
+};
 
-function BrandMark({ brand }: { brand: Brand }) {
-  const meta = BRAND_META[brand.name];
-  if (!meta) return null;
+// ── Individual card ──────────────────────────────────────────────────────────
 
-  if (meta.mark) {
-    return <span className="block w-12 h-12 flex-shrink-0">{meta.mark}</span>;
-  }
+function BrandCard({ brand }: { brand: Brand }) {
+  const cfg = BRAND_META[brand.name] ?? DEFAULT_CONFIG;
+  const isRefrag = brand.name === "Refrag";
 
-  if (meta.logo) {
-    return (
-      <span className="block w-12 h-12 flex-shrink-0 bg-white border border-linen overflow-hidden rounded-sm">
+  const gradientOverlay = cfg.overlay > 0
+    ? `linear-gradient(to top, rgba(0,0,0,${cfg.overlay}) 0%, rgba(0,0,0,${cfg.overlay * 0.4}) 55%, rgba(0,0,0,${cfg.topOverlay ?? 0}) 100%)`
+    : undefined;
+
+  const card = (
+    <div className="group relative rounded-2xl overflow-hidden flex flex-col min-h-72 cursor-pointer">
+
+      {/* Background layer */}
+      {cfg.bg ? (
         <Image
-          src={meta.logo}
-          alt={brand.name}
-          width={48}
-          height={48}
-          className="w-full h-full object-contain"
+          src={cfg.bg}
+          alt=""
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
-      </span>
+      ) : (
+        <div className="absolute inset-0" style={{ background: cfg.bgColor }} />
+      )}
+
+      {/* Refrag: large watermark bars */}
+      {isRefrag && (
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] pointer-events-none">
+          <RefragWatermark size={280} />
+        </div>
+      )}
+
+      {/* Gradient overlay */}
+      {gradientOverlay && (
+        <div className="absolute inset-0 pointer-events-none" style={{ background: gradientOverlay }} />
+      )}
+
+      {/* Brand-colour accent strip at bottom edge on hover */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-[3px] transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+        style={{ background: cfg.accent }}
+      />
+
+      {/* Card content */}
+      <div className="relative z-10 flex flex-col flex-1 p-7">
+
+        {/* Status badge — top right */}
+        <div className="flex justify-end mb-auto">
+          {brand.live_url ? (
+            <span
+              className="text-[10px] tracking-[0.15em] uppercase px-2.5 py-1 rounded-full backdrop-blur-sm"
+              style={{
+                fontFamily: cfg.labelFont,
+                fontWeight: 500,
+                color: cfg.accent,
+                background: `${cfg.accent}22`,
+                border: `1px solid ${cfg.accent}55`,
+              }}
+            >
+              Live
+            </span>
+          ) : (
+            <span
+              className="text-[10px] tracking-[0.15em] uppercase px-2.5 py-1 rounded-full"
+              style={{
+                fontFamily: cfg.labelFont,
+                fontWeight: 500,
+                color: "rgba(255,255,255,0.35)",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              Soon
+            </span>
+          )}
+        </div>
+
+        {/* Brand name + one-liner — pinned to bottom */}
+        <div className="mt-auto">
+          <h3
+            style={{
+              fontFamily: cfg.headingFont,
+              fontStyle: cfg.headingStyle ?? "normal",
+              fontWeight: 700,
+              fontSize: "1.25rem",
+              lineHeight: 1.2,
+              color: "#ffffff",
+              marginBottom: "0.5rem",
+            }}
+          >
+            {brand.name}
+          </h3>
+
+          {brand.public_one_liner && (
+            <p
+              style={{
+                fontFamily: cfg.bodyFont,
+                fontWeight: 400,
+                fontSize: "0.8125rem",
+                lineHeight: 1.55,
+                color: "rgba(255,255,255,0.65)",
+                marginBottom: brand.live_url ? "0.875rem" : 0,
+              }}
+            >
+              {brand.public_one_liner}
+            </p>
+          )}
+
+          {brand.live_url && (
+            <p
+              style={{
+                fontFamily: cfg.labelFont,
+                fontSize: "0.75rem",
+                fontWeight: 500,
+                letterSpacing: "0.05em",
+                color: cfg.accent,
+              }}
+            >
+              View project →
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (brand.live_url) {
+    return (
+      <a href={brand.live_url} target="_blank" rel="noopener noreferrer">
+        {card}
+      </a>
     );
   }
 
-  return null;
+  return card;
 }
 
-// ── Main section ────────────────────────────────────────────────────────────
+// ── Section ──────────────────────────────────────────────────────────────────
 
 export default function PartnersSection({ brands }: Props) {
   return (
     <section id="partners" className="py-24 md:py-32 px-6 md:px-12 bg-white">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-6 mb-16">
+        <div className="flex items-center gap-6 mb-12">
           <p className="label-caps">Partners &amp; Builds</p>
           <div className="flex-1 h-px bg-linen" />
         </div>
@@ -131,72 +269,10 @@ export default function PartnersSection({ brands }: Props) {
         {brands.length === 0 ? (
           <p className="font-montserrat text-sm text-steel">No partners listed yet.</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-linen border border-linen">
-            {brands.map((brand) => {
-              const meta = BRAND_META[brand.name];
-              const accent = meta?.accent ?? "#5C6E81";
-
-              const card = (
-                <div className="group bg-white flex flex-col h-full transition-colors duration-200 hover:bg-[#fafafa]">
-                  {/* Brand-coloured accent strip */}
-                  <div className="h-[3px] w-full" style={{ background: accent }} />
-
-                  <div className="p-8 flex flex-col gap-4 flex-1">
-                    {/* Logo mark + status badge */}
-                    <div className="flex items-start justify-between gap-4">
-                      <BrandMark brand={brand} />
-                      {brand.live_url ? (
-                        <span
-                          className="font-montserrat text-[10px] tracking-widest uppercase px-2 py-0.5 flex-shrink-0 mt-1 border"
-                          style={{ borderColor: `${accent}50`, color: accent }}
-                        >
-                          Live
-                        </span>
-                      ) : (
-                        <span className="font-montserrat text-[10px] tracking-widest uppercase border border-linen text-steel/40 px-2 py-0.5 flex-shrink-0 mt-1">
-                          Soon
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Brand name */}
-                    <h3 className="font-inter font-bold text-navy text-base leading-snug">
-                      {brand.name}
-                    </h3>
-
-                    {/* One-liner */}
-                    {brand.public_one_liner && (
-                      <p className="font-montserrat text-sm text-ink/50 leading-relaxed flex-1">
-                        {brand.public_one_liner}
-                      </p>
-                    )}
-
-                    {/* CTA */}
-                    {brand.live_url && (
-                      <p
-                        className="font-montserrat text-xs mt-auto"
-                        style={{ color: accent }}
-                      >
-                        View project →
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-
-              return brand.live_url ? (
-                <a
-                  key={brand.id}
-                  href={brand.live_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {card}
-                </a>
-              ) : (
-                <div key={brand.id}>{card}</div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {brands.map((brand) => (
+              <BrandCard key={brand.id} brand={brand} />
+            ))}
           </div>
         )}
       </div>

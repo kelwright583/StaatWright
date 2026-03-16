@@ -6,7 +6,7 @@ export default function HeroSection() {
   return (
     <section
       className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-6"
-      style={{ background: "#F3F2EE", paddingTop: 64 }}
+      style={{ background: "#FFFFFF", paddingTop: 64 }}
     >
       <div className="relative z-10 flex flex-col items-center text-center max-w-4xl mx-auto">
 
@@ -88,7 +88,7 @@ export default function HeroSection() {
         <motion.a
           href="#partners"
           className="font-inter font-semibold text-sm px-8 py-3.5 tracking-wide hover:bg-navy transition-colors inline-block"
-          style={{ background: "#1F2A38", color: "#F3F2EE" }}
+          style={{ background: "#1F2A38", color: "#FFFFFF" }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.05, duration: 0.5 }}

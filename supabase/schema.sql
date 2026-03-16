@@ -236,7 +236,7 @@ values
    'Author platform for a debut memoir — part rant, part revelation, entirely a thirty-something single mum.',
    'https://intheabsence.co.za',
    true, 2, 'active'),
-  ('Airview',
+  ('AirShot Base',
    'CSV-driven field performance tracker with compliance grids for sales reps and store visit management.',
    null,
    true, 3, 'active'),
