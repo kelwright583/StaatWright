@@ -1,28 +1,37 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (pathname === "/admin/login") return;
+    if (pathname === "/admin/login") {
+      setChecked(true);
+      return;
+    }
 
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        window.location.href = "/admin/login";
-      }
-    });
-  }, [pathname]);
+    createClient()
+      .auth.getUser()
+      .then(({ data: { user } }) => {
+        if (!user) {
+          window.location.href = "/admin/login";
+        } else {
+          setChecked(true);
+        }
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount — not on every navigation
 
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
+
+  if (!checked) return null;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FAFAF9" }}>
