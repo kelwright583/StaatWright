@@ -14,8 +14,8 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           // Set on request so downstream server components see the refreshed token
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value, options)
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
           );
           // Rebuild supabaseResponse with updated request so cookies propagate
           supabaseResponse = NextResponse.next({ request });
