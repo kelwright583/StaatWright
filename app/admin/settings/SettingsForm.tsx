@@ -91,8 +91,7 @@ export default function SettingsForm() {
       if (error) {
         setToast({ type: "error", message: "Failed to load settings." });
       } else if (data) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { updated_at, ...rest } = data as CompanySettings;
+        const { updated_at: _u, ...rest } = data as CompanySettings;
         setSettings(rest);
       }
       setLoading(false);
