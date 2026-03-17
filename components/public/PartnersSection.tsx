@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect } from "react";
 import { Brand } from "@/lib/types";
 
 interface Props { brands: Brand[]; }
@@ -63,7 +64,7 @@ const BRAND_META: Record<string, BrandConfig> = {
   "Concierge Styled": {
     accent: "#cc8638",
     bg: "/brands/concierge-hero.jpg",
-    headingFont: "var(--font-playfair), Georgia, serif",
+    headingFont: "'Playfair Display', Georgia, serif",
     bodyFont: "var(--font-inter), sans-serif",
     labelFont: "var(--font-inter), sans-serif",
     headingStyle: "italic",
@@ -73,9 +74,9 @@ const BRAND_META: Record<string, BrandConfig> = {
   "In the Absence of a Soapbox": {
     accent: "#C07B2A",
     bg: "/brands/soapbox-hero.png",
-    headingFont: "var(--font-playfair), Georgia, serif",
-    bodyFont: "var(--font-dm-sans), sans-serif",
-    labelFont: "var(--font-dm-sans), sans-serif",
+    headingFont: "'Playfair Display', Georgia, serif",
+    bodyFont: "'DM Sans', sans-serif",
+    labelFont: "'DM Sans', sans-serif",
     headingStyle: "italic",
     overlay: 0.78,
     topOverlay: 0.2,
@@ -92,9 +93,9 @@ const BRAND_META: Record<string, BrandConfig> = {
   "AirShot Base": {
     accent: "#8E44A3",
     bg: "/brands/airshot-base.png",
-    headingFont: "var(--font-space-grotesk), var(--font-inter), sans-serif",
+    headingFont: "'Space Grotesk', var(--font-inter), sans-serif",
     bodyFont: "var(--font-inter), sans-serif",
-    labelFont: "var(--font-space-grotesk), sans-serif",
+    labelFont: "'Space Grotesk', sans-serif",
     overlay: 0.65,
     topOverlay: 0.1,
   },
@@ -258,6 +259,14 @@ function BrandCard({ brand }: { brand: Brand }) {
 // ── Section ──────────────────────────────────────────────────────────────────
 
 export default function PartnersSection({ brands }: Props) {
+  // Load brand fonts client-side — avoids blocking server startup
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
   return (
     <section id="partners" className="py-24 md:py-32 px-6 md:px-12 bg-white">
       <div className="max-w-7xl mx-auto">
