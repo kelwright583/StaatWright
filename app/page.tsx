@@ -5,6 +5,7 @@ import ServicesSection from "@/components/public/ServicesSection";
 import PartnersSection from "@/components/public/PartnersSection";
 import ContactSection from "@/components/public/ContactSection";
 import PublicFooter from "@/components/public/PublicFooter";
+import ScrollReveal from "@/components/public/ScrollReveal";
 import { CompanySettings, Brand } from "@/lib/types";
 
 export const revalidate = 60;
@@ -23,6 +24,7 @@ export default async function Home() {
 
   return (
     <>
+      <ScrollReveal />
       <PublicNav />
       <HeroSection />
       <ServicesSection settings={settings as CompanySettings | null} />
