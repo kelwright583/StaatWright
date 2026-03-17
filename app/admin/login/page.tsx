@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import Image from "next/image";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -38,16 +37,8 @@ export default function AdminLoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "#FAFAF9" }}>
       <div className="w-full max-w-[400px]">
 
-        {/* Logo + wordmark */}
+        {/* Animated icon */}
         <div className="flex flex-col items-center mb-8">
-          <Image
-            src="/brands/staatwright-icon.png"
-            alt="StaatWright"
-            width={40}
-            height={40}
-            className="mb-4"
-          />
-
           {/* Animated bars — same as hero */}
           <div className="flex items-end gap-2 mb-6">
             {[
