@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 interface NavItem {
@@ -138,9 +139,16 @@ export default function AdminSidebar() {
       style={{ backgroundColor: "#1F2A38", width: "240px" }}
     >
       {/* Wordmark */}
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-6 pb-4 flex items-center gap-2.5">
+        <Image
+          src="/brands/staatwright-icon.png"
+          alt="StaatWright"
+          width={26}
+          height={26}
+          className="shrink-0"
+        />
         <span
-          className="text-cream font-bold text-lg tracking-tight"
+          className="text-cream font-bold uppercase tracking-widest text-xs"
           style={{ fontFamily: "var(--font-inter)" }}
         >
           StaatWright

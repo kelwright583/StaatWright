@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function PublicNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -28,8 +29,19 @@ export default function PublicNav() {
         style={{ background: "#FFFFFF", height: 64 }}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-12 h-full flex items-center justify-between">
-          <Link href="/" className="font-inter font-bold text-navy text-lg tracking-wide">
-            StaatWright
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image
+              src="/brands/staatwright-icon.png"
+              alt="StaatWright"
+              width={28}
+              height={28}
+              className="shrink-0"
+            />
+            <span
+              className="font-inter font-bold text-navy uppercase tracking-widest text-sm"
+            >
+              StaatWright Solutions
+            </span>
           </Link>
 
           {/* Desktop links */}
@@ -62,7 +74,10 @@ export default function PublicNav() {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex flex-col px-8 pt-8 bg-navy">
           <div className="flex items-center justify-between mb-12">
-            <Link href="/" className="font-inter font-bold text-cream text-lg">StaatWright</Link>
+            <Link href="/" className="flex items-center gap-2.5">
+              <Image src="/brands/staatwright-icon.png" alt="StaatWright" width={24} height={24} className="shrink-0" />
+              <span className="font-inter font-bold text-cream uppercase tracking-widest text-sm">StaatWright Solutions</span>
+            </Link>
             <button
               className="text-cream text-2xl"
               onClick={() => setMobileOpen(false)}

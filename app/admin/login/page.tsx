@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { motion } from "framer-motion";
+import Image from "next/image";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -28,80 +30,123 @@ export default function AdminLoginPage() {
       return;
     }
 
+    router.refresh();
     router.push("/admin/dashboard");
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "#FAFAF9" }}>
       <div className="w-full max-w-[400px]">
-        {/* Wordmark */}
-        <h1
-          className="text-navy font-inter font-bold text-2xl tracking-tight mb-10 text-center"
-          style={{ fontFamily: "var(--font-inter)" }}
-        >
-          StaatWright
-        </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="email"
-              className="text-xs font-montserrat text-steel uppercase tracking-widest"
-              style={{ fontFamily: "var(--font-montserrat)" }}
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-transparent border-0 border-b border-ink/30 focus:border-navy outline-none py-2 text-ink font-montserrat text-sm transition-colors"
-              style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
-            />
+        {/* Logo + wordmark */}
+        <div className="flex flex-col items-center mb-8">
+          <Image
+            src="/brands/staatwright-icon.png"
+            alt="StaatWright"
+            width={40}
+            height={40}
+            className="mb-4"
+          />
+
+          {/* Animated bars — same as hero */}
+          <div className="flex items-end gap-2 mb-6">
+            {[
+              { color: "#1F2A38", delay: 0 },
+              { color: "#5C6E81", delay: 0.25 },
+              { color: "#EAE4DC", borderColor: "#c8c2b8", delay: 0.5 },
+            ].map((bar, i) => (
+              <motion.div
+                key={i}
+                style={{
+                  width: 16,
+                  height: 26,
+                  backgroundColor: bar.color,
+                  border: bar.borderColor ? `1px solid ${bar.borderColor}` : undefined,
+                }}
+                animate={{ opacity: [0.2, 1, 0.2] }}
+                transition={{
+                  duration: 1.2,
+                  delay: bar.delay,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  repeatDelay: 0.3,
+                }}
+              />
+            ))}
           </div>
 
-          {/* Password */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="password"
-              className="text-xs font-montserrat text-steel uppercase tracking-widest"
-              style={{ fontFamily: "var(--font-montserrat)" }}
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="bg-transparent border-0 border-b border-ink/30 focus:border-navy outline-none py-2 text-ink font-montserrat text-sm transition-colors"
-              style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
-            />
-          </div>
-
-          {/* Error */}
-          {error && (
-            <p className="text-red-600 text-xs font-montserrat" style={{ fontFamily: "var(--font-montserrat)" }}>
-              {error}
-            </p>
-          )}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-navy text-white font-montserrat text-sm font-medium py-3 px-4 hover:bg-navy/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
+          <p
+            className="text-xs uppercase tracking-widest text-steel"
+            style={{ fontFamily: "var(--font-montserrat)" }}
           >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+            Admin Portal
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-white border border-linen p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Email */}
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="email"
+                className="text-xs uppercase tracking-widest text-steel"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm text-ink bg-linen/30 border border-linen focus:border-navy focus:bg-white outline-none transition-colors"
+                style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
+              />
+            </div>
+
+            {/* Password */}
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="password"
+                className="text-xs uppercase tracking-widest text-steel"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm text-ink bg-linen/30 border border-linen focus:border-navy focus:bg-white outline-none transition-colors"
+                style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
+              />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <p className="text-red-600 text-xs" style={{ fontFamily: "var(--font-montserrat)" }}>
+                {error}
+              </p>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-navy text-white text-sm font-medium py-3 px-4 hover:bg-navy/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-2"
+              style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
+            >
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
