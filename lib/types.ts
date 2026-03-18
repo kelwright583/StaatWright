@@ -100,6 +100,8 @@ export interface Document {
   notes: string | null;
   terms: string | null;
   pdf_path: string | null;
+  // Links a credit note to the invoice it offsets (references documents.id where type='invoice')
+  linked_document_id?: string | null;
   created_at: string;
   updated_at: string;
 }

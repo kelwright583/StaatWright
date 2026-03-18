@@ -100,7 +100,7 @@ export default function RetainersPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.partner_id) { setFormError("Partner is required."); return; }
+    if (!form.partner_id) { setFormError("Client is required."); return; }
     if (!form.name.trim()) { setFormError("Name is required."); return; }
     if (!form.monthly_amount) { setFormError("Monthly amount is required."); return; }
     if (!form.start_date) { setFormError("Start date is required."); return; }
@@ -161,13 +161,13 @@ export default function RetainersPage() {
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Partner *</label>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Client *</label>
                   <select
                     value={form.partner_id} onChange={(e) => handleChange("partner_id", e.target.value)} required
                     className="border-b border-linen focus:border-navy outline-none bg-transparent py-2 w-full text-ink text-sm"
                     style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
                   >
-                    <option value="">— Select partner —</option>
+                    <option value="">— Select client —</option>
                     {partners.map((p) => <option key={p.id} value={p.id}>{p.company_name}</option>)}
                   </select>
                 </div>
@@ -278,7 +278,7 @@ export default function RetainersPage() {
             <table className="w-full text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>
               <thead>
                 <tr className="border-b border-linen" style={{ backgroundColor: "rgba(234,228,220,0.5)" }}>
-                  <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Partner</th>
+                  <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Client</th>
                   <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Name</th>
                   <th className="text-right px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Monthly</th>
                   <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Next Invoice</th>

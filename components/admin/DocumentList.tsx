@@ -90,7 +90,7 @@ export default function DocumentList({ type, documents, newHref }: DocumentListP
                   #
                 </th>
                 <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
-                  Partner
+                  Client
                 </th>
                 <th className="text-right px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
                   Amount

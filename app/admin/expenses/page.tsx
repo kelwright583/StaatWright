@@ -482,9 +482,9 @@ export default function ExpensesPage() {
                   </span>
                 </label>
 
-                {/* Partner (optional) */}
+                {/* Client / Venture (optional) */}
                 <label className="flex flex-col gap-1">
-                  <span className={labelClass}>Partner (optional)</span>
+                  <span className={labelClass}>Client / Venture (optional)</span>
                   <select
                     value={formPartnerId}
                     onChange={(e) => setFormPartnerId(e.target.value)}
@@ -590,7 +590,7 @@ export default function ExpensesPage() {
                 <th className={thClass + " text-left"}>Category</th>
                 <th className={thClass + " text-right"}>Amount (incl VAT)</th>
                 <th className={thClass + " text-center"}>Slip</th>
-                <th className={thClass + " text-left"}>Partner</th>
+                <th className={thClass + " text-left"}>Client / Venture</th>
                 <th className={thClass + " text-right"}>Actions</th>
               </tr>
             </thead>

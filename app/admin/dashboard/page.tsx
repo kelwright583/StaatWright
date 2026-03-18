@@ -193,7 +193,7 @@ export default async function DashboardPage() {
               <table className="w-full text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>
                 <thead>
                   <tr className="border-b border-linen" style={{ backgroundColor: "rgba(234,228,220,0.5)" }}>
-                    <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Partner</th>
+                    <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Client</th>
                     <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Invoice #</th>
                     <th className="text-right px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Amount</th>
                     <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Due Date</th>

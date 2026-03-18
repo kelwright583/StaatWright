@@ -288,16 +288,16 @@ export default function DocumentBuilder({
         {/* Row 1: Client + dates */}
         <div className="bg-white border border-[#EAE4DC] p-6 space-y-4" style={{ borderRadius: 0 }}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Partner */}
+            {/* Client */}
             <div className="sm:col-span-1">
-              <FieldLabel>Partner</FieldLabel>
+              <FieldLabel>Client</FieldLabel>
               <select
                 className={selectCls}
                 style={{ borderRadius: 0 }}
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
               >
-                <option value="">— Select partner —</option>
+                <option value="">— Select client —</option>
                 {partnerList.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company_name}
