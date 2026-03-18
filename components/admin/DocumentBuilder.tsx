@@ -6,6 +6,40 @@ import { Trash2, Plus, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Document, DocumentLineItem, Partner, CompanySettings } from "@/lib/types";
 
+// ─── VAT + payment terms config ─────────────────────────────────────────────
+
+const VAT_OPTIONS = [
+  { label: "15% (Standard)", value: 0.15 },
+  { label: "0% (Zero-rated)", value: 0 },
+  { label: "Exempt", value: -1 }, // -1 = exempt (no VAT, not zero-rated)
+] as const;
+
+const PAYMENT_TERMS_OPTIONS = [
+  { label: "Net 7",  value: "Net 7",  days: 7 },
+  { label: "Net 14", value: "Net 14", days: 14 },
+  { label: "Net 30", value: "Net 30", days: 30 },
+  { label: "Net 60", value: "Net 60", days: 60 },
+  { label: "COD",    value: "COD",    days: 0 },
+  { label: "EOM",    value: "EOM",    days: null }, // end of month
+  { label: "Custom", value: "Custom", days: null },
+] as const;
+
+type PaymentTermsValue = (typeof PAYMENT_TERMS_OPTIONS)[number]["value"];
+
+function calcDueDateFromTerms(issueDate: string, terms: PaymentTermsValue): string {
+  if (!issueDate) return issueDate;
+  if (terms === "COD") return issueDate;
+  if (terms === "Custom") return issueDate;
+  if (terms === "EOM") {
+    const d = new Date(issueDate);
+    // Last day of current month
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  }
+  const opt = PAYMENT_TERMS_OPTIONS.find((o) => o.value === terms);
+  if (opt && opt.days != null) return addDays(issueDate, opt.days);
+  return issueDate;
+}
+
 // ─── currency config ────────────────────────────────────────────────────────
 
 const CURRENCIES = [
@@ -54,13 +88,22 @@ function recalcItem(item: DocumentLineItem): DocumentLineItem {
   return { ...item, line_total };
 }
 
-function calcTotals(items: DocumentLineItem[]) {
+function calcTotals(items: DocumentLineItem[], docVatRate?: number) {
   let subtotal = 0;
   let vat_total = 0;
   for (const it of items) {
     if (it.type === "item") {
       subtotal += it.line_total ?? 0;
-      vat_total += ((it.line_total ?? 0) * (it.vat_rate ?? 0)) / 100;
+      // If docVatRate is provided use it (exempt = -1 means no VAT),
+      // otherwise fall back to per-line vat_rate (legacy, stored as %)
+      if (docVatRate !== undefined) {
+        if (docVatRate > 0) {
+          vat_total += (it.line_total ?? 0) * docVatRate;
+        }
+        // 0 (zero-rated) and -1 (exempt) both contribute R0 VAT
+      } else {
+        vat_total += ((it.line_total ?? 0) * (it.vat_rate ?? 0)) / 100;
+      }
     }
   }
   return { subtotal, vat_total, total: subtotal + vat_total };
@@ -173,8 +216,19 @@ export default function DocumentBuilder({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ── VAT rate (document-level) ───────────────────────────────────────────────
+  const docAnyVat = initialDoc as (Document & { vat_rate?: number; payment_terms?: string }) | undefined;
+  // stored as 0, 0.15, or -1 (exempt); default 0.15
+  const [vatRate, setVatRate] = useState<number>(
+    docAnyVat?.vat_rate !== undefined ? docAnyVat.vat_rate : 0.15
+  );
+  // ── payment terms ───────────────────────────────────────────────────────────
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTermsValue>(
+    (docAnyVat?.payment_terms as PaymentTermsValue) ?? "Net 30"
+  );
+
   // ── multi-currency ──────────────────────────────────────────────────────────
-  const docAny = initialDoc as (Document & { currency?: string; exchange_rate?: number; zar_equivalent?: number }) | undefined;
+  const docAny = initialDoc as (Document & { currency?: string; exchange_rate?: number; zar_equivalent?: number; vat_rate?: number; payment_terms?: string }) | undefined;
   const [currency, setCurrency] = useState<CurrencyCode>(
     (docAny?.currency as CurrencyCode) ?? "ZAR"
   );
@@ -183,7 +237,7 @@ export default function DocumentBuilder({
   );
 
   // ── derived totals ──────────────────────────────────────────────────────────
-  const { subtotal, vat_total, total } = calcTotals(lineItems);
+  const { subtotal, vat_total, total } = calcTotals(lineItems, vatRate);
 
   // ── line item mutation helpers ─────────────────────────────────────────────
   const updateItem = useCallback(
@@ -241,6 +295,14 @@ export default function DocumentBuilder({
         subtotal,
         vat_total,
         total,
+        // VAT tracking fields — columns may not exist yet; Supabase will ignore unknown
+        // fields only if RLS/schema allows — gracefully handled via try/catch.
+        // Migration: ALTER TABLE documents ADD COLUMN IF NOT EXISTS vat_rate numeric DEFAULT 0.15;
+        // Migration: ALTER TABLE documents ADD COLUMN IF NOT EXISTS vat_amount numeric DEFAULT 0;
+        // Migration: ALTER TABLE documents ADD COLUMN IF NOT EXISTS payment_terms text DEFAULT 'Net 30';
+        vat_rate: vatRate,
+        vat_amount: vat_total,
+        payment_terms: paymentTerms,
         notes: notes || null,
         terms: terms || null,
         currency: currency !== "ZAR" ? currency : "ZAR",
@@ -346,6 +408,50 @@ export default function DocumentBuilder({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* VAT Rate + Payment Terms */}
+          <div className="border-t border-[#EAE4DC] pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>VAT Rate</FieldLabel>
+              <select
+                className={selectCls}
+                style={{ borderRadius: 0 }}
+                value={String(vatRate)}
+                onChange={(e) => setVatRate(parseFloat(e.target.value))}
+              >
+                {VAT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={String(opt.value)}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {type === "invoice" && (
+              <div>
+                <FieldLabel>Payment Terms</FieldLabel>
+                <select
+                  className={selectCls}
+                  style={{ borderRadius: 0 }}
+                  value={paymentTerms}
+                  onChange={(e) => {
+                    const t = e.target.value as PaymentTermsValue;
+                    setPaymentTerms(t);
+                    if (t !== "Custom") {
+                      const newDue = calcDueDateFromTerms(issueDate, t);
+                      setSecondDate(newDue);
+                    }
+                  }}
+                >
+                  {PAYMENT_TERMS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Currency selector — invoices only */}
@@ -587,15 +693,21 @@ export default function DocumentBuilder({
             style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
           >
             <div className="flex justify-between text-sm text-[#5C6E81]">
-              <span>Subtotal</span>
+              <span>Subtotal (excl. VAT)</span>
               <span>{formatZAR(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm text-[#5C6E81]">
-              <span>VAT</span>
+              <span>
+                {vatRate === -1
+                  ? "VAT (Exempt)"
+                  : vatRate === 0
+                  ? "VAT (Zero-rated)"
+                  : `VAT (${Math.round(vatRate * 100)}%)`}
+              </span>
               <span>{formatZAR(vat_total)}</span>
             </div>
             <div className="border-t border-[#EAE4DC] pt-2 flex justify-between text-sm font-bold text-[#1F2A38]">
-              <span>Total</span>
+              <span>Total (incl. VAT)</span>
               <span>{formatZAR(total)}</span>
             </div>
           </div>

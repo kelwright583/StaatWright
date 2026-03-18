@@ -331,6 +331,13 @@ export default function ClientDetailPage() {
         <h2 className="text-navy font-bold text-lg" style={{ fontFamily: "var(--font-inter)" }}>
           {client.company_name}
         </h2>
+        <Link
+          href={`/admin/clients/${id}/statement`}
+          className="px-4 py-1.5 border border-linen text-xs text-steel hover:border-navy hover:text-navy transition-colors"
+          style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+        >
+          Statement
+        </Link>
       </div>
 
       <main className="pt-[56px] p-8">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Document, Expense, Drawing, Partner, OwnerSettings } from "@/lib/types";
 
@@ -701,13 +702,17 @@ function PerPartnerTab() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const router = useRouter();
   const [tab, setTab] = useState("pl");
 
   const tabs = [
-    { value: "pl",          label: "P&L" },
-    { value: "cashflow",    label: "Cash Flow" },
-    { value: "drawings",    label: "Drawings" },
-    { value: "per_partner", label: "Per-Partner" },
+    { value: "pl",            label: "P&L" },
+    { value: "cashflow",      label: "Cash Flow" },
+    { value: "drawings",      label: "Drawings" },
+    { value: "per_partner",   label: "Per-Partner" },
+    { value: "aging",         label: "AR Aging",      href: "/admin/reports/aging" },
+    { value: "balance_sheet", label: "Balance Sheet", href: "/admin/reports/balance-sheet" },
+    { value: "vat",           label: "VAT Report",    href: "/admin/reports/vat" },
   ];
 
   return (
@@ -724,7 +729,17 @@ export default function ReportsPage() {
         <div className="border-b border-linen mb-6">
           <div className="flex gap-0 -mb-px" role="tablist">
             {tabs.map((t) => (
-              <TabButton key={t.value} active={tab === t.value} onClick={() => setTab(t.value)}>
+              <TabButton
+                key={t.value}
+                active={tab === t.value}
+                onClick={() => {
+                  if (t.href) {
+                    router.push(t.href);
+                  } else {
+                    setTab(t.value);
+                  }
+                }}
+              >
                 {t.label}
               </TabButton>
             ))}
