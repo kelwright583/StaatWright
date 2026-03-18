@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
+import ConvertToInvoice from "@/components/admin/ConvertToInvoice";
 import type { Document, Partner, CompanySettings } from "@/lib/types";
 
 interface Props {
@@ -29,13 +30,24 @@ export default async function QuoteDetailPage({ params }: Props) {
   const partners = (partnersData ?? []) as Partner[];
   const settings = settingsData as CompanySettings;
 
+  const showConvert = doc.status === "accepted" || doc.status === "sent";
+
   return (
     <>
       <AdminTopBar
         title={`Quote ${doc.number}`}
         user={user ? { email: user.email ?? "" } : null}
       />
-      <main className="pt-[56px] p-8">
+      <main className="pt-[56px] p-8 space-y-4">
+        {/* Action bar — only when quote is convertible */}
+        {showConvert && (
+          <div className="flex justify-end">
+            <div className="w-72">
+              <ConvertToInvoice quote={doc} settings={settings} />
+            </div>
+          </div>
+        )}
+
         <DocumentBuilder
           type="quote"
           initialDoc={doc}

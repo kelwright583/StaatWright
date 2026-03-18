@@ -6,6 +6,17 @@ import { Trash2, Plus, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Document, DocumentLineItem, Partner, CompanySettings } from "@/lib/types";
 
+// ─── currency config ────────────────────────────────────────────────────────
+
+const CURRENCIES = [
+  { code: "ZAR", label: "ZAR — South African Rand" },
+  { code: "USD", label: "USD — US Dollar" },
+  { code: "EUR", label: "EUR — Euro" },
+  { code: "GBP", label: "GBP — British Pound" },
+] as const;
+
+type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function formatZAR(amount: number): string {
@@ -162,6 +173,15 @@ export default function DocumentBuilder({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ── multi-currency ──────────────────────────────────────────────────────────
+  const docAny = initialDoc as (Document & { currency?: string; exchange_rate?: number; zar_equivalent?: number }) | undefined;
+  const [currency, setCurrency] = useState<CurrencyCode>(
+    (docAny?.currency as CurrencyCode) ?? "ZAR"
+  );
+  const [exchangeRate, setExchangeRate] = useState<string>(
+    docAny?.exchange_rate != null ? String(docAny.exchange_rate) : ""
+  );
+
   // ── derived totals ──────────────────────────────────────────────────────────
   const { subtotal, vat_total, total } = calcTotals(lineItems);
 
@@ -206,6 +226,9 @@ export default function DocumentBuilder({
     try {
       const supabase = createClient();
 
+      const parsedExchangeRate = currency !== "ZAR" && exchangeRate ? parseFloat(exchangeRate) : null;
+      const zarEquivalent = parsedExchangeRate ? total * parsedExchangeRate : null;
+
       const payload = {
         type,
         partner_id: clientId || null,
@@ -220,6 +243,9 @@ export default function DocumentBuilder({
         total,
         notes: notes || null,
         terms: terms || null,
+        currency: currency !== "ZAR" ? currency : "ZAR",
+        exchange_rate: parsedExchangeRate,
+        zar_equivalent: zarEquivalent,
         updated_at: new Date().toISOString(),
       };
 
@@ -321,6 +347,64 @@ export default function DocumentBuilder({
               ))}
             </select>
           </div>
+
+          {/* Currency selector — invoices only */}
+          {type === "invoice" && (
+            <div className="border-t border-[#EAE4DC] pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <FieldLabel>Currency</FieldLabel>
+                <select
+                  className={selectCls}
+                  style={{ borderRadius: 0 }}
+                  value={currency}
+                  onChange={(e) => {
+                    setCurrency(e.target.value as CurrencyCode);
+                    if (e.target.value === "ZAR") setExchangeRate("");
+                  }}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {currency !== "ZAR" && (
+                <>
+                  <div>
+                    <FieldLabel>Exchange Rate (1 {currency} = R __ ZAR)</FieldLabel>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      className={inputCls}
+                      style={{ borderRadius: 0 }}
+                      value={exchangeRate}
+                      onChange={(e) => setExchangeRate(e.target.value)}
+                      placeholder="e.g. 18.50"
+                    />
+                    <p
+                      className="mt-1 text-xs text-[#5C6E81]"
+                      style={{ fontFamily: "var(--font-montserrat)" }}
+                    >
+                      Rate will be locked when document is saved
+                    </p>
+                  </div>
+                  <div className="flex flex-col justify-end pb-1">
+                    {exchangeRate && parseFloat(exchangeRate) > 0 && (
+                      <p
+                        className="text-sm font-semibold text-[#1F2A38]"
+                        style={{ fontFamily: "var(--font-montserrat)" }}
+                      >
+                        ≈ {formatZAR(total * parseFloat(exchangeRate))} ZAR
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Row 2: Line items */}

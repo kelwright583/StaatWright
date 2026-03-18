@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import type { ExpenseCategoryLegacy } from "@/lib/types";
@@ -91,6 +92,7 @@ export default function ExpensesPage() {
   const [clients, setClients] = useState<PartnerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ email: string } | null>(null);
+  const [pendingInboxCount, setPendingInboxCount] = useState(0);
 
   // UI
   const [showAddForm, setShowAddForm] = useState(false);
@@ -115,19 +117,28 @@ export default function ExpensesPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [{ data: expData }, { data: clientData }, { data: { user: u } }] =
-      await Promise.all([
-        supabase
-          .from("expenses")
-          .select("*, partner:partners(company_name)")
-          .order("date", { ascending: false }),
-        supabase.from("partners").select("id, company_name").order("company_name"),
-        supabase.auth.getUser(),
-      ]);
+    const [
+      { data: expData },
+      { data: clientData },
+      { data: { user: u } },
+      { count: inboxCount },
+    ] = await Promise.all([
+      supabase
+        .from("expenses")
+        .select("*, partner:partners(company_name)")
+        .order("date", { ascending: false }),
+      supabase.from("partners").select("id, company_name").order("company_name"),
+      supabase.auth.getUser(),
+      supabase
+        .from("expense_inbox")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending"),
+    ]);
 
     setExpenses((expData as ExpenseRow[]) ?? []);
     setClients((clientData as ClientRow[]) ?? []);
     setUser(u ? { email: u.email ?? "" } : null);
+    setPendingInboxCount(inboxCount ?? 0);
     setLoading(false);
   }, [supabase]);
 
@@ -289,6 +300,22 @@ export default function ExpensesPage() {
       <AdminTopBar title="Expenses" user={user} />
 
       <main className="pt-[56px] p-8 space-y-6">
+        {/* ── Inbox banner ── */}
+        {pendingInboxCount > 0 && (
+          <Link
+            href="/admin/expenses/inbox"
+            className="flex items-center justify-between border border-linen bg-white px-5 py-3 hover:bg-linen/30 transition-colors"
+            style={{ borderRadius: 0 }}
+          >
+            <span className="text-sm text-ink" style={{ fontFamily: "var(--font-montserrat)" }}>
+              📥 {pendingInboxCount} slip{pendingInboxCount !== 1 ? "s" : ""} awaiting review
+            </span>
+            <span className="text-xs text-steel underline" style={{ fontFamily: "var(--font-montserrat)" }}>
+              Go to Inbox →
+            </span>
+          </Link>
+        )}
+
         {/* ── Summary cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SummaryCard label="This Month" value={formatZAR(thisMonthTotal)} />
@@ -329,6 +356,23 @@ export default function ExpensesPage() {
           </select>
 
           <div className="flex-1" />
+
+          {/* Inbox link */}
+          <Link
+            href="/admin/expenses/inbox"
+            className="px-4 py-2 text-sm border border-linen text-steel hover:bg-linen transition-colors flex items-center gap-1"
+            style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+          >
+            📥 Inbox
+            {pendingInboxCount > 0 && (
+              <span
+                className="ml-1 text-xs text-white px-1.5 py-0.5 font-semibold"
+                style={{ background: "#1F2A38", borderRadius: 0 }}
+              >
+                {pendingInboxCount}
+              </span>
+            )}
+          </Link>
 
           {/* Export CSV */}
           <button
