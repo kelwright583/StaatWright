@@ -32,6 +32,18 @@ function UsersIcon() {
   );
 }
 
+function BalanceIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="1" x2="8" y2="15" />
+      <line x1="2" y1="1" x2="14" y2="1" />
+      <path d="M2 1L5 7H2" />
+      <path d="M14 1L11 7H14" />
+      <line x1="4" y1="15" x2="12" y2="15" />
+    </svg>
+  );
+}
+
 function DocumentIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -64,6 +76,17 @@ function MinusCircleIcon() {
   );
 }
 
+function RepeatIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4,4 1,4 1,11" />
+      <path d="M1 4a7 7 0 0 1 14 0" />
+      <polyline points="12,12 15,12 15,5" />
+      <path d="M15 12a7 7 0 0 1-14 0" />
+    </svg>
+  );
+}
+
 function FolderIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -79,6 +102,16 @@ function ReceiptIcon() {
       <line x1="5" y1="5" x2="11" y2="5" />
       <line x1="5" y1="8" x2="11" y2="8" />
       <line x1="5" y1="11" x2="8" y2="11" />
+    </svg>
+  );
+}
+
+function BarChartIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="8" width="3" height="7" />
+      <rect x="6" y="5" width="3" height="10" />
+      <rect x="11" y="2" width="3" height="13" />
     </svg>
   );
 }
@@ -103,14 +136,17 @@ function CogIcon() {
 }
 
 const mainNav: NavItem[] = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: <GridIcon /> },
-  { label: "Clients", href: "/admin/clients", icon: <UsersIcon /> },
-  { label: "Invoices", href: "/admin/invoices", icon: <DocumentIcon /> },
-  { label: "Quotes", href: "/admin/quotes", icon: <ClipboardIcon /> },
+  { label: "Dashboard",    href: "/admin/dashboard",    icon: <GridIcon /> },
+  { label: "Partners",     href: "/admin/partners",     icon: <UsersIcon /> },
+  { label: "Equity",       href: "/admin/equity",       icon: <BalanceIcon /> },
+  { label: "Invoices",     href: "/admin/invoices",     icon: <DocumentIcon /> },
+  { label: "Quotes",       href: "/admin/quotes",       icon: <ClipboardIcon /> },
   { label: "Credit Notes", href: "/admin/credit-notes", icon: <MinusCircleIcon /> },
-  { label: "Files", href: "/admin/files", icon: <FolderIcon /> },
-  { label: "Expenses", href: "/admin/expenses", icon: <ReceiptIcon /> },
-  { label: "Brand Assets", href: "/admin/brands", icon: <LayersIcon /> },
+  { label: "Retainers",    href: "/admin/retainers",    icon: <RepeatIcon /> },
+  { label: "Files",        href: "/admin/files",        icon: <FolderIcon /> },
+  { label: "Expenses",     href: "/admin/expenses",     icon: <ReceiptIcon /> },
+  { label: "Reports",      href: "/admin/reports",      icon: <BarChartIcon /> },
+  { label: "Brand Assets", href: "/admin/brands",       icon: <LayersIcon /> },
 ];
 
 const bottomNav: NavItem[] = [

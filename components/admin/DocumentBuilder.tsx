@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Plus, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { Document, DocumentLineItem, Client, CompanySettings } from "@/lib/types";
+import type { Document, DocumentLineItem, Partner, CompanySettings } from "@/lib/types";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -113,7 +113,9 @@ export interface DocumentBuilderProps {
   type: "invoice" | "quote" | "credit_note";
   initialDoc?: Document;
   initialClientId?: string;
-  clients: Client[];
+  initialPartnerId?: string;
+  clients?: Partner[];
+  partners?: Partner[];
   settings: CompanySettings;
 }
 
@@ -123,9 +125,13 @@ export default function DocumentBuilder({
   type,
   initialDoc,
   initialClientId,
+  initialPartnerId,
   clients,
+  partners,
   settings,
 }: DocumentBuilderProps) {
+  // Support both old "clients" prop and new "partners" prop
+  const partnerList = partners ?? clients ?? [];
   const router = useRouter();
   const meta = TYPE_META[type];
   const isNew = !initialDoc;
@@ -139,7 +145,7 @@ export default function DocumentBuilder({
       : (initialDoc?.due_date ?? addDays(defaultIssue, 30));
 
   const [clientId, setClientId] = useState(
-    initialDoc?.client_id ?? initialClientId ?? ""
+    initialDoc?.partner_id ?? initialDoc?.client_id ?? initialPartnerId ?? initialClientId ?? ""
   );
   const [issueDate, setIssueDate] = useState(defaultIssue);
   const [secondDate, setSecondDate] = useState(defaultSecondDate);
@@ -202,6 +208,7 @@ export default function DocumentBuilder({
 
       const payload = {
         type,
+        partner_id: clientId || null,
         client_id: clientId || null,
         status: saveStatus,
         issue_date: issueDate || null,
@@ -255,17 +262,17 @@ export default function DocumentBuilder({
         {/* Row 1: Client + dates */}
         <div className="bg-white border border-[#EAE4DC] p-6 space-y-4" style={{ borderRadius: 0 }}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Client */}
+            {/* Partner */}
             <div className="sm:col-span-1">
-              <FieldLabel>Client</FieldLabel>
+              <FieldLabel>Partner</FieldLabel>
               <select
                 className={selectCls}
                 style={{ borderRadius: 0 }}
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
               >
-                <option value="">— Select client —</option>
-                {clients.map((c) => (
+                <option value="">— Select partner —</option>
+                {partnerList.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company_name}
                   </option>

@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
-import type { Client, CompanySettings } from "@/lib/types";
+import type { Partner, CompanySettings } from "@/lib/types";
 
 interface Props {
-  searchParams: Promise<{ client_id?: string }>;
+  searchParams: Promise<{ client_id?: string; partner_id?: string }>;
 }
 
 export default async function NewQuotePage({ searchParams }: Props) {
@@ -15,12 +15,12 @@ export default async function NewQuotePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: clientsData }, { data: settingsData }] = await Promise.all([
-    supabase.from("clients").select("*").order("company_name"),
+  const [{ data: partnersData }, { data: settingsData }] = await Promise.all([
+    supabase.from("partners").select("*").order("company_name"),
     supabase.from("company_settings").select("*").single(),
   ]);
 
-  const clients = (clientsData ?? []) as Client[];
+  const partners = (partnersData ?? []) as Partner[];
   const settings = settingsData as CompanySettings;
 
   return (
@@ -32,9 +32,9 @@ export default async function NewQuotePage({ searchParams }: Props) {
       <main className="pt-[56px] p-8">
         <DocumentBuilder
           type="quote"
-          clients={clients}
+          partners={partners}
           settings={settings}
-          initialClientId={params.client_id}
+          initialPartnerId={params.partner_id ?? params.client_id}
         />
       </main>
     </>

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AdminTopBar from "@/components/admin/AdminTopBar";
-import type { ExpenseCategory } from "@/lib/types";
+import type { ExpenseCategoryLegacy } from "@/lib/types";
+type ExpenseCategory = ExpenseCategoryLegacy;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -17,12 +18,14 @@ interface ExpenseRow {
   amount_incl_vat: number | null;
   slip_path: string | null;
   notes: string | null;
+  partner_id: string | null;
   client_id: string | null;
   created_at: string;
+  partner?: { company_name: string } | null;
   client?: { company_name: string } | null;
 }
 
-interface ClientRow {
+interface PartnerRow {
   id: string;
   company_name: string;
 }
@@ -85,7 +88,7 @@ export default function ExpensesPage() {
 
   // Data
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [clients, setClients] = useState<PartnerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ email: string } | null>(null);
 
@@ -103,6 +106,7 @@ export default function ExpensesPage() {
   const [formCategory, setFormCategory] = useState<ExpenseCategory>("Software");
   const [formAmount, setFormAmount] = useState("");
   const [formVatIncluded, setFormVatIncluded] = useState(false);
+  const [formPartnerId, setFormPartnerId] = useState("");
   const [formClientId, setFormClientId] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formSlip, setFormSlip] = useState<File | null>(null);
@@ -115,9 +119,9 @@ export default function ExpensesPage() {
       await Promise.all([
         supabase
           .from("expenses")
-          .select("*, client:clients(company_name)")
+          .select("*, partner:partners(company_name)")
           .order("date", { ascending: false }),
-        supabase.from("clients").select("id, company_name").order("company_name"),
+        supabase.from("partners").select("id, company_name").order("company_name"),
         supabase.auth.getUser(),
       ]);
 
@@ -195,7 +199,8 @@ export default function ExpensesPage() {
         amount_excl_vat,
         vat_amount,
         amount_incl_vat,
-        client_id: formClientId || null,
+        partner_id: formPartnerId || null,
+        client_id: formPartnerId || null,
         notes: formNotes.trim() || null,
       })
       .select()
@@ -223,6 +228,7 @@ export default function ExpensesPage() {
     setFormCategory("Software");
     setFormAmount("");
     setFormVatIncluded(false);
+    setFormPartnerId("");
     setFormClientId("");
     setFormNotes("");
     setFormSlip(null);
@@ -432,12 +438,12 @@ export default function ExpensesPage() {
                   </span>
                 </label>
 
-                {/* Client (optional) */}
+                {/* Partner (optional) */}
                 <label className="flex flex-col gap-1">
-                  <span className={labelClass}>Client (optional)</span>
+                  <span className={labelClass}>Partner (optional)</span>
                   <select
-                    value={formClientId}
-                    onChange={(e) => setFormClientId(e.target.value)}
+                    value={formPartnerId}
+                    onChange={(e) => setFormPartnerId(e.target.value)}
                     className={inputClass}
                   >
                     <option value="">— None —</option>
@@ -540,7 +546,7 @@ export default function ExpensesPage() {
                 <th className={thClass + " text-left"}>Category</th>
                 <th className={thClass + " text-right"}>Amount (incl VAT)</th>
                 <th className={thClass + " text-center"}>Slip</th>
-                <th className={thClass + " text-left"}>Client</th>
+                <th className={thClass + " text-left"}>Partner</th>
                 <th className={thClass + " text-right"}>Actions</th>
               </tr>
             </thead>
@@ -602,7 +608,7 @@ export default function ExpensesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-steel text-sm">
-                      {e.client?.company_name ?? "—"}
+                      {e.partner?.company_name ?? e.client?.company_name ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button

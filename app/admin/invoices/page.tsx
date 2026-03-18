@@ -12,11 +12,11 @@ export default async function InvoicesPage() {
 
   const { data } = await supabase
     .from("documents")
-    .select("*, client:clients(company_name)")
+    .select("*, partner:partners(company_name)")
     .eq("type", "invoice")
     .order("created_at", { ascending: false });
 
-  const documents = (data ?? []) as (Document & { client?: { company_name: string } })[];
+  const documents = (data ?? []) as (Document & { partner?: { company_name: string } })[];
 
   return (
     <>

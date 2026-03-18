@@ -8,15 +8,15 @@ function formatZAR(amount: number): string {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { dot: string; label: string }> = {
-    paid:     { dot: "bg-green-500",  label: "Paid" },
-    overdue:  { dot: "bg-red-500",    label: "Overdue" },
-    sent:     { dot: "bg-amber-500",  label: "Sent" },
-    draft:    { dot: "bg-steel",      label: "Draft" },
-    accepted: { dot: "bg-green-400",  label: "Accepted" },
-    declined: { dot: "bg-red-400",    label: "Declined" },
-    expired:  { dot: "bg-red-300",    label: "Expired" },
-    cancelled:{ dot: "bg-steel",      label: "Cancelled" },
-    issued:   { dot: "bg-amber-400",  label: "Issued" },
+    paid:      { dot: "bg-green-500",  label: "Paid" },
+    overdue:   { dot: "bg-red-500",    label: "Overdue" },
+    sent:      { dot: "bg-amber-500",  label: "Sent" },
+    draft:     { dot: "bg-steel",      label: "Draft" },
+    accepted:  { dot: "bg-green-400",  label: "Accepted" },
+    declined:  { dot: "bg-red-400",    label: "Declined" },
+    expired:   { dot: "bg-red-300",    label: "Expired" },
+    cancelled: { dot: "bg-steel",      label: "Cancelled" },
+    issued:    { dot: "bg-amber-400",  label: "Issued" },
   };
 
   const entry = map[status] ?? { dot: "bg-steel", label: status };
@@ -33,9 +33,10 @@ interface StatCardProps {
   label: string;
   value: string;
   badge?: React.ReactNode;
+  valueColor?: string;
 }
 
-function StatCard({ label, value, badge }: StatCardProps) {
+function StatCard({ label, value, badge, valueColor }: StatCardProps) {
   return (
     <div className="bg-white border border-linen p-6 flex flex-col gap-2" style={{ borderRadius: 0 }}>
       <span
@@ -46,8 +47,8 @@ function StatCard({ label, value, badge }: StatCardProps) {
       </span>
       <div className="flex items-center gap-2">
         <span
-          className="text-navy font-bold text-2xl"
-          style={{ fontFamily: "var(--font-inter)" }}
+          className="font-bold text-2xl"
+          style={{ fontFamily: "var(--font-inter)", color: valueColor ?? "#1F2A38" }}
         >
           {value}
         </span>
@@ -64,10 +65,10 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Outstanding invoices: sent or overdue
+  // Outstanding invoices: sent or overdue — use partners table
   const { data: outstandingInvoices } = await supabase
     .from("documents")
-    .select("*, client:clients(company_name)")
+    .select("*, partner:partners(company_name)")
     .eq("type", "invoice")
     .in("status", ["sent", "overdue"]);
 
@@ -76,20 +77,30 @@ export default async function DashboardPage() {
     (d: Document) => d.status === "overdue"
   );
 
-  // Open quotes: sent or accepted
-  const { data: openQuotes } = await supabase
-    .from("documents")
-    .select("id")
-    .eq("type", "quote")
-    .in("status", ["sent", "accepted"]);
-
-  // MTD expenses
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+  // This month's paid invoices (revenue)
+  const { data: paidThisMonth } = await supabase
+    .from("documents")
+    .select("total")
+    .eq("type", "invoice")
+    .eq("status", "paid")
+    .gte("issue_date", firstOfMonth.slice(0, 10))
+    .lte("issue_date", lastOfMonth.slice(0, 10));
+
+  // MTD expenses
   const { data: mtdExpenses } = await supabase
     .from("expenses")
-    .select("id, date, description, category, amount_excl_vat, vat_amount, amount_incl_vat, slip_path, notes, client_id, created_at, updated_at")
+    .select("id, date, description, category, amount_excl_vat, vat_amount, amount_incl_vat, slip_path, notes, partner_id, created_at, updated_at")
     .gte("created_at", firstOfMonth);
+
+  // Pending expense inbox items
+  const { data: inboxItems } = await supabase
+    .from("expense_inbox")
+    .select("id")
+    .eq("status", "pending");
 
   // Recent events
   const { data: recentEvents } = await supabase
@@ -104,11 +115,16 @@ export default async function DashboardPage() {
     0
   );
   const overdueCount = overdueInvoices.length;
-  const openQuotesCount = (openQuotes ?? []).length;
+  const revenueThisMonth = (paidThisMonth ?? []).reduce(
+    (sum: number, d: { total: number | null }) => sum + (d.total ?? 0),
+    0
+  );
   const mtdTotal = (mtdExpenses ?? []).reduce(
     (sum: number, e: Expense) => sum + (e.amount_incl_vat ?? 0),
     0
   );
+  const netThisMonth = revenueThisMonth - mtdTotal;
+  const pendingInboxCount = (inboxItems ?? []).length;
 
   return (
     <>
@@ -117,10 +133,9 @@ export default async function DashboardPage() {
         user={user ? { email: user.email ?? "" } : null}
       />
 
-      {/* Content */}
       <main className="pt-[56px] p-8 space-y-8">
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stat cards — 5 wide */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Outstanding" value={formatZAR(outstandingTotal)} />
           <StatCard
             label="Overdue"
@@ -136,9 +151,33 @@ export default async function DashboardPage() {
               ) : undefined
             }
           />
-          <StatCard label="Open Quotes" value={String(openQuotesCount)} />
-          <StatCard label="Expenses (MTD)" value={formatZAR(mtdTotal)} />
+          <StatCard label="This Month Revenue" value={formatZAR(revenueThisMonth)} />
+          <StatCard label="This Month Expenses" value={formatZAR(mtdTotal)} />
+          <StatCard
+            label="Net This Month"
+            value={formatZAR(netThisMonth)}
+            valueColor={netThisMonth >= 0 ? "#16a34a" : "#dc2626"}
+          />
         </div>
+
+        {/* Slip Inbox mini panel */}
+        {pendingInboxCount > 0 && (
+          <div
+            className="bg-amber-50 border border-amber-200 px-5 py-3 flex items-center justify-between"
+            style={{ borderRadius: 0 }}
+          >
+            <span className="text-sm text-amber-800" style={{ fontFamily: "var(--font-montserrat)" }}>
+              <strong>{pendingInboxCount}</strong> slip{pendingInboxCount !== 1 ? "s" : ""} pending in Slip Inbox
+            </span>
+            <a
+              href="/admin/expenses"
+              className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              Review →
+            </a>
+          </div>
+        )}
 
         {/* Bottom two-column layout */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -154,7 +193,7 @@ export default async function DashboardPage() {
               <table className="w-full text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>
                 <thead>
                   <tr className="border-b border-linen" style={{ backgroundColor: "rgba(234,228,220,0.5)" }}>
-                    <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Client</th>
+                    <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Partner</th>
                     <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Invoice #</th>
                     <th className="text-right px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Amount</th>
                     <th className="text-left px-4 py-3 text-xs text-steel uppercase tracking-wider font-medium">Due Date</th>
@@ -170,10 +209,10 @@ export default async function DashboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    (outstandingInvoices ?? []).map((doc: Document & { client?: { company_name: string } }) => (
+                    (outstandingInvoices ?? []).map((doc: Document & { partner?: { company_name: string } }) => (
                       <tr key={doc.id} className="border-b border-linen last:border-0 hover:bg-linen/20 transition-colors">
                         <td className="px-4 py-3 text-ink text-sm">
-                          {doc.client?.company_name ?? "—"}
+                          {doc.partner?.company_name ?? "—"}
                         </td>
                         <td className="px-4 py-3 text-ink text-sm">{doc.number}</td>
                         <td className="px-4 py-3 text-ink text-sm text-right">{formatZAR(doc.total ?? 0)}</td>
