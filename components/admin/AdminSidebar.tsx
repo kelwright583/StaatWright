@@ -135,10 +135,30 @@ function CogIcon() {
   );
 }
 
+function PersonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="5" r="3" />
+      <path d="M2 15c0-3.5 2.5-5.5 6-5.5s6 2 6 5.5" />
+    </svg>
+  );
+}
+
+function RocketIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 2C9.5 2 13 3 13 7c0 2-1 3.5-2.5 4.5L9 13H7l-1.5-1.5C4 10.5 3 9 3 7c0-4 3.5-5 3.5-5" />
+      <circle cx="8" cy="7" r="1.5" />
+      <path d="M5.5 11.5L4 14" />
+      <path d="M10.5 11.5L12 14" />
+    </svg>
+  );
+}
+
 const mainNav: NavItem[] = [
   { label: "Dashboard",    href: "/admin/dashboard",    icon: <GridIcon /> },
-  { label: "Partners",     href: "/admin/partners",     icon: <UsersIcon /> },
-  { label: "Equity",       href: "/admin/equity",       icon: <BalanceIcon /> },
+  { label: "Clients",      href: "/admin/clients",      icon: <PersonIcon /> },
+  { label: "Ventures",     href: "/admin/ventures",     icon: <RocketIcon /> },
   { label: "Invoices",     href: "/admin/invoices",     icon: <DocumentIcon /> },
   { label: "Quotes",       href: "/admin/quotes",       icon: <ClipboardIcon /> },
   { label: "Credit Notes", href: "/admin/credit-notes", icon: <MinusCircleIcon /> },
