@@ -612,7 +612,7 @@ function DrawingsTab() {
   );
 }
 
-// ─── Per-Partner Tab ──────────────────────────────────────────────────────────
+// ─── Per-Client Tab ───────────────────────────────────────────────────────────
 
 function PerPartnerTab() {
   const supabase = createClient();
@@ -656,13 +656,13 @@ function PerPartnerTab() {
   return (
     <div className="space-y-6">
       <div className="max-w-xs">
-        <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Select Partner</label>
+        <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Select Client</label>
         <select
           value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
           className="border border-linen bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-navy w-full"
           style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
         >
-          <option value="">— Select partner —</option>
+          <option value="">— Select client —</option>
           {partners.map((p) => <option key={p.id} value={p.id}>{p.company_name}</option>)}
         </select>
       </div>
@@ -675,7 +675,7 @@ function PerPartnerTab() {
             { label: "Total Invoiced",  value: formatZAR(data.invoiced) },
             { label: "Total Paid",      value: formatZAR(data.paid) },
             { label: "Outstanding",     value: formatZAR(data.outstanding) },
-            { label: "Partner Expenses",value: formatZAR(data.expenses) },
+            { label: "Client Expenses",value: formatZAR(data.expenses) },
             { label: "Net Margin",      value: formatZAR(margin), highlight: true, positive: margin >= 0 },
           ].map((card) => (
             <div key={card.label} className="bg-white border border-linen p-5 flex flex-col gap-1" style={{ borderRadius: 0 }}>
@@ -709,7 +709,7 @@ export default function ReportsPage() {
     { value: "pl",            label: "P&L" },
     { value: "cashflow",      label: "Cash Flow" },
     { value: "drawings",      label: "Drawings" },
-    { value: "per_partner",   label: "Per-Partner" },
+    { value: "per_partner",   label: "Per-Client" },
     { value: "aging",         label: "AR Aging",      href: "/admin/reports/aging" },
     { value: "balance_sheet", label: "Balance Sheet", href: "/admin/reports/balance-sheet" },
     { value: "vat",           label: "VAT Report",    href: "/admin/reports/vat" },
