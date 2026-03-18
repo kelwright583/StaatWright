@@ -136,7 +136,7 @@ export default function ExpensesPage() {
     ]);
 
     setExpenses((expData as ExpenseRow[]) ?? []);
-    setClients((clientData as ClientRow[]) ?? []);
+    setClients((clientData as PartnerRow[]) ?? []);
     setUser(u ? { email: u.email ?? "" } : null);
     setPendingInboxCount(inboxCount ?? 0);
     setLoading(false);
