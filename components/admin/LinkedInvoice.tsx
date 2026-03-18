@@ -45,10 +45,10 @@ export default function LinkedInvoice({ creditNoteId, currentLinkedInvoiceId, co
       .order("number", { ascending: false });
 
     setInvoices(
-      (data ?? []).map((d: { id: string; number: string; total: number | null; partner?: { company_name: string } | null }) => ({
+      (data ?? []).map((d: { id: string; number: string; total: number | null; partner?: { company_name: string }[] | null }) => ({
         id: d.id,
         number: d.number,
-        partner_name: d.partner?.company_name ?? null,
+        partner_name: Array.isArray(d.partner) ? (d.partner[0]?.company_name ?? null) : (d.partner as { company_name: string } | null)?.company_name ?? null,
         total: d.total,
       }))
     );
