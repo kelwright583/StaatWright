@@ -247,7 +247,7 @@ export async function GET() {
 
     if (dataRow.number % 2 === 0) {
       dataRow.eachCell((cell) => {
-        if (!cell.fill || (cell.fill as ExcelJS.PatternFill).fgColor?.argb !== NAVY) {
+        if (!cell.fill || (cell.fill as { fgColor?: { argb?: string } }).fgColor?.argb !== NAVY) {
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CREAM } };
         }
       });
