@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
 import PartialPayments from "@/components/admin/PartialPayments";
+import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
 import type { Document, Partner, CompanySettings } from "@/lib/types";
 
 interface Props {
@@ -39,6 +40,8 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const partners = (partnersData ?? []) as Partner[];
   const settings = settingsData as CompanySettings;
 
+  const docPartner = partners.find((p) => p.id === doc.partner_id) ?? null;
+  const showSendButton = doc.status === "draft";
   const showPayments = PAYMENT_STATUSES.includes(doc.status);
 
   // Multi-currency
@@ -91,6 +94,18 @@ export default async function InvoiceDetailPage({ params }: Props) {
           partners={partners}
           settings={settings}
         />
+
+        {showSendButton && (
+          <div className="max-w-xs">
+            <SendInvoiceButton
+              documentId={doc.id}
+              invoiceNumber={doc.number}
+              partnerEmail={docPartner?.email ?? null}
+              partnerName={docPartner?.company_name ?? null}
+              total={doc.total ?? 0}
+            />
+          </div>
+        )}
 
         {showPayments && (
           <div className="max-w-3xl">

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
 import LinkedInvoice from "@/components/admin/LinkedInvoice";
-import type { Document, Client, CompanySettings } from "@/lib/types";
+import type { Document, Partner, CompanySettings } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -27,7 +27,7 @@ export default async function CreditNoteDetailPage({ params }: Props) {
   if (!docData || docData.type !== "credit_note") notFound();
 
   const doc = docData as Document;
-  const clients = (clientsData ?? []) as Client[];
+  const clients = (clientsData ?? []) as Partner[];
   const settings = settingsData as CompanySettings;
 
   // Detect whether linked_document_id column exists yet (graceful degradation)

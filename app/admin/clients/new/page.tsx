@@ -80,7 +80,7 @@ function TextareaField({
 
 interface FormState {
   company_name: string;
-  contact_person: string;
+  contact_name: string;
   email: string;
   phone: string;
   address: string;
@@ -90,7 +90,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   company_name: "",
-  contact_person: "",
+  contact_name: "",
   email: "",
   phone: "",
   address: "",
@@ -126,16 +126,17 @@ export default function NewClientPage() {
       .filter(Boolean);
 
     const { data, error: insertError } = await supabase
-      .from("clients")
+      .from("partners")
       .insert({
         company_name: form.company_name.trim(),
-        contact_person: form.contact_person.trim() || null,
+        contact_name: form.contact_name.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
         address: form.address.trim() || null,
         vat_number: form.vat_number.trim() || null,
         tags: tagsArray,
-        notes: [],
+        type: "client",
+        notes_log: [],
       })
       .select()
       .single();
@@ -202,9 +203,9 @@ export default function NewClientPage() {
                   />
                 </div>
                 <Field
-                  label="Contact Person"
-                  name="contact_person"
-                  value={form.contact_person}
+                  label="Contact Name"
+                  name="contact_name"
+                  value={form.contact_name}
                   onChange={handleChange}
                 />
                 <Field

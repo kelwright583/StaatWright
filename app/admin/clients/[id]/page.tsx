@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Document, Brand } from "@/lib/types";
+import type { Document, Brand, PartnerNote } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -32,6 +32,7 @@ interface ClientPartner {
   website: string | null;
   relationship_type: string | null;
   notes: string | null;
+  notes_log: PartnerNote[] | null;
   show_on_site: boolean | null;
   brand_id: string | null;
   type: string | null;
@@ -201,9 +202,9 @@ export default function ClientDetailPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Notes tab
-  const [notesText, setNotesText] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
+  // Notes tab (append-only)
+  const [newNoteText, setNewNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -233,7 +234,7 @@ export default function ClientDetailPage() {
         show_on_site: p.show_on_site ?? false,
         brand_id: p.brand_id ?? "",
       });
-      setNotesText(p.notes ?? "");
+      // notes_log handled via partner state
     }
 
     setInvoices((invoiceData ?? []) as Document[]);
@@ -273,11 +274,35 @@ export default function ClientDetailPage() {
     setTimeout(() => setSaveSuccess(false), 3000);
   }
 
-  async function handleSaveNotes(e: React.FormEvent) {
+  async function handleAddNote(e: React.FormEvent) {
     e.preventDefault();
-    setSavingNotes(true);
-    await supabase.from("partners").update({ notes: notesText.trim() || null }).eq("id", id);
-    setSavingNotes(false);
+    if (!newNoteText.trim()) return;
+    setSavingNote(true);
+
+    const { data: ownerData } = await supabase
+      .from("owner_settings")
+      .select("initials")
+      .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+      .single();
+
+    const initials = ownerData?.initials ?? "SW";
+
+    const newNote: PartnerNote = {
+      text: newNoteText.trim(),
+      created_at: new Date().toISOString(),
+      initials,
+    };
+
+    const currentNotes = client?.notes_log ?? [];
+    const updatedNotes = [...currentNotes, newNote];
+
+    await supabase
+      .from("partners")
+      .update({ notes_log: updatedNotes })
+      .eq("id", id);
+
+    setNewNoteText("");
+    setSavingNote(false);
     await loadData();
   }
 
@@ -519,31 +544,62 @@ export default function ClientDetailPage() {
         {/* Notes tab                                                           */}
         {/* ------------------------------------------------------------------ */}
         {activeTab === "notes" && (
-          <form onSubmit={handleSaveNotes}>
-            <div className="bg-white border border-linen p-8" style={{ borderRadius: 0 }}>
-              <h3 className="text-navy font-bold text-xs uppercase tracking-wider mb-4" style={{ fontFamily: "var(--font-inter)" }}>
-                Notes
-              </h3>
-              <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Internal notes about this client</label>
+          <div className="bg-white border border-linen p-8" style={{ borderRadius: 0 }}>
+            <h3 className="text-navy font-bold text-xs uppercase tracking-wider mb-6"
+                style={{ fontFamily: "var(--font-inter)" }}>
+              Activity Notes
+            </h3>
+
+            <div className="space-y-3 mb-8">
+              {(client?.notes_log ?? []).length === 0 ? (
+                <p className="text-steel text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>
+                  No notes yet.
+                </p>
+              ) : (
+                [...(client?.notes_log ?? [])].reverse().map((note: PartnerNote, i: number) => (
+                  <div key={i} className="border-l-2 border-linen pl-4 py-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-navy"
+                            style={{ fontFamily: "var(--font-inter)" }}>
+                        {note.initials}
+                      </span>
+                      <span className="text-xs text-steel" style={{ fontFamily: "var(--font-montserrat)" }}>
+                        {new Date(note.created_at).toLocaleDateString("en-ZA", {
+                          day: "2-digit", month: "short", year: "numeric",
+                          hour: "2-digit", minute: "2-digit"
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink" style={{ fontFamily: "var(--font-montserrat)" }}>
+                      {note.text}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={handleAddNote} className="border-t border-linen pt-6">
+              <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>
+                Add Note
+              </label>
               <textarea
-                rows={10}
-                value={notesText}
-                onChange={(e) => setNotesText(e.target.value)}
-                placeholder="Add notes here…"
-                className="border border-linen focus:border-navy outline-none bg-transparent p-3 w-full text-ink text-sm resize-y mt-1 placeholder:text-steel/50"
+                rows={3}
+                value={newNoteText}
+                onChange={(e) => setNewNoteText(e.target.value)}
+                placeholder="Add an internal note…"
+                className="border border-linen focus:border-navy outline-none bg-transparent p-3 w-full text-ink text-sm resize-y mt-1"
                 style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
               />
-              <div className="mt-4">
-                <button
-                  type="submit" disabled={savingNotes}
-                  className="px-5 py-2 text-white text-sm font-semibold transition-opacity disabled:opacity-60"
-                  style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
-                >
-                  {savingNotes ? "Saving…" : "Save Notes"}
-                </button>
-              </div>
-            </div>
-          </form>
+              <button
+                type="submit"
+                disabled={savingNote || !newNoteText.trim()}
+                className="mt-3 px-5 py-2 text-white text-sm font-semibold transition-opacity disabled:opacity-40"
+                style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
+              >
+                {savingNote ? "Saving…" : "Add Note"}
+              </button>
+            </form>
+          </div>
         )}
       </main>
     </>

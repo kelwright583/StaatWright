@@ -42,7 +42,6 @@ export default function ConvertToInvoice({ quote, settings }: Props) {
           number: nextNumber,
           status: "draft",
           partner_id: quote.partner_id,
-          client_id: quote.client_id ?? quote.partner_id,
           issue_date: new Date().toISOString().slice(0, 10),
           due_date: null,
           valid_until: null,

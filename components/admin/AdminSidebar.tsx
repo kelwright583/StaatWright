@@ -157,16 +157,14 @@ function RocketIcon() {
 
 const mainNav: NavItem[] = [
   { label: "Dashboard",    href: "/admin/dashboard",    icon: <GridIcon /> },
-  { label: "Clients",      href: "/admin/clients",      icon: <PersonIcon /> },
-  { label: "Ventures",     href: "/admin/ventures",     icon: <RocketIcon /> },
+  { label: "Partners",     href: "/admin/partners",     icon: <UsersIcon /> },
   { label: "Invoices",     href: "/admin/invoices",     icon: <DocumentIcon /> },
   { label: "Quotes",       href: "/admin/quotes",       icon: <ClipboardIcon /> },
   { label: "Credit Notes", href: "/admin/credit-notes", icon: <MinusCircleIcon /> },
   { label: "Retainers",    href: "/admin/retainers",    icon: <RepeatIcon /> },
-  { label: "Files",        href: "/admin/files",        icon: <FolderIcon /> },
   { label: "Expenses",     href: "/admin/expenses",     icon: <ReceiptIcon /> },
+  { label: "Files",        href: "/admin/files",        icon: <FolderIcon /> },
   { label: "Reports",      href: "/admin/reports",      icon: <BarChartIcon /> },
-  { label: "Brand Assets", href: "/admin/brands",       icon: <LayersIcon /> },
 ];
 
 const bottomNav: NavItem[] = [

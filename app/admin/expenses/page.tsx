@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AdminTopBar from "@/components/admin/AdminTopBar";
-import type { ExpenseCategoryLegacy } from "@/lib/types";
-type ExpenseCategory = ExpenseCategoryLegacy;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -13,17 +11,16 @@ interface ExpenseRow {
   id: string;
   date: string;
   description: string;
-  category: ExpenseCategory | null;
+  category: string | null;
+  vendor: string | null;
   amount_excl_vat: number | null;
   vat_amount: number | null;
   amount_incl_vat: number | null;
   slip_path: string | null;
   notes: string | null;
   partner_id: string | null;
-  client_id: string | null;
   created_at: string;
   partner?: { company_name: string } | null;
-  client?: { company_name: string } | null;
 }
 
 interface PartnerRow {
@@ -31,9 +28,15 @@ interface PartnerRow {
   company_name: string;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface CategoryRow {
+  id: string;
+  name: string;
+  parent_category: string | null;
+  is_deductible: boolean;
+  sort_order: number;
+}
 
-const CATEGORIES: ExpenseCategory[] = [
+const FALLBACK_CATEGORIES = [
   "Software",
   "Hosting",
   "Travel",
@@ -90,6 +93,8 @@ export default function ExpensesPage() {
   // Data
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [clients, setClients] = useState<PartnerRow[]>([]);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [vendorSuggestions, setVendorSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [pendingInboxCount, setPendingInboxCount] = useState(0);
@@ -105,11 +110,11 @@ export default function ExpensesPage() {
   // Form state
   const [formDate, setFormDate] = useState(todayISO());
   const [formDescription, setFormDescription] = useState("");
-  const [formCategory, setFormCategory] = useState<ExpenseCategory>("Software");
+  const [formVendor, setFormVendor] = useState("");
+  const [formCategory, setFormCategory] = useState<string>("");
   const [formAmount, setFormAmount] = useState("");
   const [formVatIncluded, setFormVatIncluded] = useState(false);
   const [formPartnerId, setFormPartnerId] = useState("");
-  const [formClientId, setFormClientId] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formSlip, setFormSlip] = useState<File | null>(null);
 
@@ -122,6 +127,7 @@ export default function ExpensesPage() {
       { data: clientData },
       { data: { user: u } },
       { count: inboxCount },
+      { data: catData, error: catErr },
     ] = await Promise.all([
       supabase
         .from("expenses")
@@ -133,12 +139,31 @@ export default function ExpensesPage() {
         .from("expense_inbox")
         .select("id", { count: "exact", head: true })
         .eq("status", "pending"),
+      supabase
+        .from("expense_categories")
+        .select("id, name, parent_category, is_deductible, sort_order")
+        .eq("is_archived", false)
+        .order("sort_order", { ascending: true }),
     ]);
 
-    setExpenses((expData as ExpenseRow[]) ?? []);
+    const expenseRows = (expData as ExpenseRow[]) ?? [];
+    setExpenses(expenseRows);
     setClients((clientData as PartnerRow[]) ?? []);
     setUser(u ? { email: u.email ?? "" } : null);
     setPendingInboxCount(inboxCount ?? 0);
+
+    if (!catErr && catData && catData.length > 0) {
+      setCategories(catData as CategoryRow[]);
+    }
+
+    // Build vendor suggestions from existing expenses
+    const vendors = new Set<string>();
+    for (const exp of expenseRows) {
+      const v = (exp as ExpenseRow & { vendor?: string }).vendor;
+      if (v) vendors.add(v);
+    }
+    setVendorSuggestions(Array.from(vendors).sort());
+
     setLoading(false);
   }, [supabase]);
 
@@ -206,12 +231,12 @@ export default function ExpensesPage() {
       .insert({
         date: formDate,
         description: formDescription.trim(),
-        category: formCategory,
+        vendor: formVendor.trim() || null,
+        category: formCategory || null,
         amount_excl_vat,
         vat_amount,
         amount_incl_vat,
         partner_id: formPartnerId || null,
-        client_id: formPartnerId || null,
         notes: formNotes.trim() || null,
       })
       .select()
@@ -236,11 +261,11 @@ export default function ExpensesPage() {
     // Reset form
     setFormDate(todayISO());
     setFormDescription("");
-    setFormCategory("Software");
+    setFormVendor("");
+    setFormCategory("");
     setFormAmount("");
     setFormVatIncluded(false);
     setFormPartnerId("");
-    setFormClientId("");
     setFormNotes("");
     setFormSlip(null);
     setShowAddForm(false);
@@ -333,11 +358,16 @@ export default function ExpensesPage() {
             style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
           >
             <option value="all">All Categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
+            {categories.length > 0
+              ? categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.parent_category ? `${c.parent_category} → ` : ""}{c.name}
+                  </option>
+                ))
+              : FALLBACK_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))
+            }
           </select>
 
           {/* Month filter */}
@@ -420,8 +450,26 @@ export default function ExpensesPage() {
                   />
                 </label>
 
+                {/* Vendor (autocomplete) */}
+                <label className="flex flex-col gap-1">
+                  <span className={labelClass}>Vendor</span>
+                  <input
+                    type="text"
+                    value={formVendor}
+                    onChange={(e) => setFormVendor(e.target.value)}
+                    list="vendor-suggestions"
+                    placeholder="e.g. Google, AWS, Afrihost"
+                    className={inputClass}
+                  />
+                  <datalist id="vendor-suggestions">
+                    {vendorSuggestions.map((v) => (
+                      <option key={v} value={v} />
+                    ))}
+                  </datalist>
+                </label>
+
                 {/* Description */}
-                <label className="flex flex-col gap-1 lg:col-span-2">
+                <label className="flex flex-col gap-1">
                   <span className={labelClass}>Description *</span>
                   <input
                     type="text"
@@ -433,21 +481,48 @@ export default function ExpensesPage() {
                   />
                 </label>
 
-                {/* Category */}
+                {/* Category (dynamic from DB) */}
                 <label className="flex flex-col gap-1">
                   <span className={labelClass}>Category</span>
                   <select
                     value={formCategory}
-                    onChange={(e) =>
-                      setFormCategory(e.target.value as ExpenseCategory)
-                    }
+                    onChange={(e) => setFormCategory(e.target.value)}
                     className={inputClass}
                   >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
+                    <option value="">— Select —</option>
+                    {categories.length > 0 ? (
+                      (() => {
+                        const grouped = new Map<string, CategoryRow[]>();
+                        const ungrouped: CategoryRow[] = [];
+                        for (const cat of categories) {
+                          if (cat.parent_category) {
+                            const arr = grouped.get(cat.parent_category) ?? [];
+                            arr.push(cat);
+                            grouped.set(cat.parent_category, arr);
+                          } else {
+                            ungrouped.push(cat);
+                          }
+                        }
+                        return (
+                          <>
+                            {ungrouped.map((c) => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                            {Array.from(grouped.entries()).map(([parent, children]) => (
+                              <optgroup key={parent} label={parent}>
+                                {children.map((c) => (
+                                  <option key={c.id} value={c.name}>{c.name}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </>
+                        );
+                      })()
+                    ) : (
+                      FALLBACK_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))
+                    )}
                   </select>
                 </label>
 
@@ -586,11 +661,12 @@ export default function ExpensesPage() {
                 style={{ backgroundColor: "rgba(234,228,220,0.5)" }}
               >
                 <th className={thClass + " text-left"}>Date</th>
+                <th className={thClass + " text-left"}>Vendor</th>
                 <th className={thClass + " text-left"}>Description</th>
                 <th className={thClass + " text-left"}>Category</th>
                 <th className={thClass + " text-right"}>Amount (incl VAT)</th>
                 <th className={thClass + " text-center"}>Slip</th>
-                <th className={thClass + " text-left"}>Client / Venture</th>
+                <th className={thClass + " text-left"}>Partner</th>
                 <th className={thClass + " text-right"}>Actions</th>
               </tr>
             </thead>
@@ -598,7 +674,7 @@ export default function ExpensesPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-steel text-sm"
                   >
                     Loading…
@@ -607,7 +683,7 @@ export default function ExpensesPage() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-steel text-sm"
                   >
                     No expenses found.
@@ -621,6 +697,9 @@ export default function ExpensesPage() {
                   >
                     <td className="px-4 py-3 text-ink text-sm whitespace-nowrap">
                       {formatDate(e.date)}
+                    </td>
+                    <td className="px-4 py-3 text-ink text-sm whitespace-nowrap">
+                      {e.vendor ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-ink text-sm max-w-xs truncate">
                       {e.description}
@@ -652,7 +731,7 @@ export default function ExpensesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-steel text-sm">
-                      {e.partner?.company_name ?? e.client?.company_name ?? "—"}
+                      {e.partner?.company_name ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -720,7 +799,7 @@ function SummaryCard({
   );
 }
 
-function CategoryPill({ category }: { category: ExpenseCategory }) {
+function CategoryPill({ category }: { category: string }) {
   return (
     <span
       className="inline-block border border-steel text-steel text-xs px-2 py-0.5"

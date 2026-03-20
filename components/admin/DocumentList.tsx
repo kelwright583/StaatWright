@@ -16,8 +16,9 @@ const STATUS_MAP: Record<string, { dot: string; label: string }> = {
   accepted:  { dot: "bg-green-400",  label: "Accepted" },
   declined:  { dot: "bg-red-400",    label: "Declined" },
   expired:   { dot: "bg-red-300",    label: "Expired" },
-  cancelled: { dot: "bg-[#5C6E81]",  label: "Cancelled" },
-  issued:    { dot: "bg-amber-400",  label: "Issued" },
+  cancelled:      { dot: "bg-[#5C6E81]",  label: "Cancelled" },
+  issued:         { dot: "bg-amber-400",  label: "Issued" },
+  partially_paid: { dot: "bg-indigo-500", label: "Partially Paid" },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -38,7 +39,7 @@ const TYPE_LABELS: Record<string, { singular: string; segment: string; dateLabel
 
 export interface DocumentListProps {
   type: "invoice" | "quote" | "credit_note";
-  documents: (Document & { partner?: { company_name: string }; client?: { company_name: string } })[];
+  documents: (Document & { partner?: { company_name: string } })[];
   newHref: string;
 }
 
@@ -90,7 +91,7 @@ export default function DocumentList({ type, documents, newHref }: DocumentListP
                   #
                 </th>
                 <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
-                  Client
+                  Partner
                 </th>
                 <th className="text-right px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
                   Amount
@@ -123,7 +124,7 @@ export default function DocumentList({ type, documents, newHref }: DocumentListP
                   >
                     <td className="px-4 py-3 text-[#1A1A1A] font-medium">{doc.number}</td>
                     <td className="px-4 py-3 text-[#1A1A1A]">
-                      {doc.partner?.company_name ?? doc.client?.company_name ?? "—"}
+                      {doc.partner?.company_name ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-[#1A1A1A] text-right">
                       {formatZAR(doc.total ?? 0)}

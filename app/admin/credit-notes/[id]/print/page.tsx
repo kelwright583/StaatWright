@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PrintButton from "@/components/admin/PrintButton";
-import type { Document, Client, CompanySettings } from "@/lib/types";
+import type { Document, Partner, CompanySettings } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -30,7 +30,7 @@ export default async function CreditNotePrintPage({ params }: Props) {
   const [{ data: docData }, { data: settingsData }] = await Promise.all([
     supabase
       .from("documents")
-      .select("*, client:clients(*)")
+      .select("*, partner:partners(*)")
       .eq("id", id)
       .single(),
     supabase.from("company_settings").select("*").single(),
@@ -38,7 +38,7 @@ export default async function CreditNotePrintPage({ params }: Props) {
 
   if (!docData || docData.type !== "credit_note") notFound();
 
-  const doc = docData as Document & { client: Client | null };
+  const doc = docData as Document & { partner: Partner | null };
   const settings = settingsData as CompanySettings;
 
   return (
@@ -134,7 +134,7 @@ export default async function CreditNotePrintPage({ params }: Props) {
         </div>
 
         {/* Credit to */}
-        {doc.client && (
+        {doc.partner && (
           <div style={{ marginBottom: 40 }}>
             <div
               style={{
@@ -158,16 +158,16 @@ export default async function CreditNotePrintPage({ params }: Props) {
               }}
             >
               <div style={{ fontWeight: 700, fontSize: 15, fontFamily: "sans-serif" }}>
-                {doc.client.company_name}
+                {doc.partner.company_name}
               </div>
-              {doc.client.contact_person && <div>{doc.client.contact_person}</div>}
-              {doc.client.address && (
-                <div style={{ whiteSpace: "pre-line" }}>{doc.client.address}</div>
+              {doc.partner.contact_name && <div>{doc.partner.contact_name}</div>}
+              {doc.partner.address && (
+                <div style={{ whiteSpace: "pre-line" }}>{doc.partner.address}</div>
               )}
-              {doc.client.email && <div>{doc.client.email}</div>}
-              {doc.client.vat_number && (
+              {doc.partner.email && <div>{doc.partner.email}</div>}
+              {doc.partner.vat_number && (
                 <div style={{ color: "#5C6E81", fontSize: 12 }}>
-                  VAT: {doc.client.vat_number}
+                  VAT: {doc.partner.vat_number}
                 </div>
               )}
             </div>

@@ -103,12 +103,26 @@ export default function PartialPayments({ documentId, invoiceTotal, currency }: 
         newStatus = "partially_paid";
       }
 
+      const previousStatus = newTotal - parsedAmount > 0 ? "partially_paid" : "sent";
+
       // Update document status
       const { error: updateErr } = await supabase
         .from("documents")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq("id", documentId);
       if (updateErr) throw updateErr;
+
+      // Write document event
+      await supabase.from("document_events").insert({
+        document_id: documentId,
+        event_type: newStatus === "paid" ? "paid" : "payment_recorded",
+        detail: {
+          from: previousStatus,
+          to: newStatus,
+          amount: parsedAmount,
+          reference: reference || null,
+        },
+      });
 
       // Reset form and refetch
       setAmount("");

@@ -1,3 +1,5 @@
+// ─── Company Settings ────────────────────────────────────────────────────────
+
 export interface CompanySettings {
   id: string;
   name: string | null;
@@ -29,27 +31,34 @@ export interface CompanySettings {
   service_3_title: string | null;
   service_3_body: string | null;
   contact_email: string | null;
+  reminder_templates: Record<string, unknown> | null;
   updated_at: string;
 }
 
-export type PartnerRelationshipType =
-  | "active_client"
-  | "retainer_client"
-  | "partner_build"
-  | "prospect"
-  | "archived";
+// ─── Partners ────────────────────────────────────────────────────────────────
+
+export type PartnerType = "client" | "venture";
 
 export interface Partner {
   id: string;
   company_name: string;
-  contact_person: string | null;
+  type: PartnerType;
+  contact_name: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
+  website: string | null;
   vat_number: string | null;
+  relationship_type: string | null;
+  status: string | null;
+  founding_date: string | null;
+  show_on_site: boolean;
+  brand_id: string | null;
   tags: string[];
-  notes: PartnerNote[];
-  relationship_type: PartnerRelationshipType | null;
+  notes_log: PartnerNote[];
+  venture_ownership: VentureOwnership | null;
+  external_billing: ExternalBillingRow[] | null;
+  spec: PartnerSpec | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,9 +69,46 @@ export interface PartnerNote {
   initials: string;
 }
 
-// Legacy aliases kept for backward compat during transition
-export type Client = Partner;
-export type ClientNote = PartnerNote;
+export interface VentureOwnership {
+  [ownerName: string]: {
+    percentage: number;
+    role: string;
+    joined_date?: string;
+    notes?: string;
+  };
+}
+
+export interface ExternalBillingRow {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  date: string;
+  type: "revenue" | "subscription_cost";
+}
+
+export interface PartnerSpec {
+  one_liner?: string;
+  description?: string;
+  problem?: string;
+  target_audience?: string;
+  key_features?: string[];
+  tech_stack?: string[];
+  launch_date?: string;
+  live_url?: string;
+  scope_status?: "in_spec" | "in_build" | "live" | "paused" | "complete";
+  scope_items?: { text: string; done: boolean }[];
+  github_url?: string;
+  figma_url?: string;
+  staging_url?: string;
+  production_url?: string;
+  other_links?: { label: string; url: string }[];
+  architecture_notes?: string;
+  technical_debt?: string;
+  roadmap?: string;
+}
+
+// ─── Documents ───────────────────────────────────────────────────────────────
 
 export interface DocumentLineItem {
   id: string;
@@ -75,7 +121,7 @@ export interface DocumentLineItem {
 }
 
 export type DocumentType = "invoice" | "quote" | "credit_note";
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled" | "partially_paid";
 export type QuoteStatus = "draft" | "sent" | "accepted" | "declined" | "expired";
 export type CreditNoteStatus = "draft" | "issued";
 export type DocumentStatus = InvoiceStatus | QuoteStatus | CreditNoteStatus;
@@ -86,9 +132,6 @@ export interface Document {
   number: string;
   partner_id: string | null;
   partner?: Partner;
-  // legacy alias
-  client_id?: string | null;
-  client?: Partner;
   status: DocumentStatus;
   issue_date: string | null;
   due_date: string | null;
@@ -100,8 +143,12 @@ export interface Document {
   notes: string | null;
   terms: string | null;
   pdf_path: string | null;
-  // Links a credit note to the invoice it offsets (references documents.id where type='invoice')
-  linked_document_id?: string | null;
+  currency: string | null;
+  exchange_rate: number | null;
+  zar_equivalent: number | null;
+  vat_rate: number | null;
+  payment_terms: string | null;
+  linked_document_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -118,6 +165,8 @@ export interface DocumentEvent {
   created_by: string | null;
 }
 
+// ─── Expenses ────────────────────────────────────────────────────────────────
+
 export type ExpenseCategoryLegacy =
   | "Software"
   | "Hosting"
@@ -131,7 +180,7 @@ export interface Expense {
   id: string;
   date: string;
   description: string;
-  category: ExpenseCategoryLegacy | null;
+  category: string | null;
   amount_excl_vat: number | null;
   vat_amount: number | null;
   amount_incl_vat: number | null;
@@ -139,12 +188,11 @@ export interface Expense {
   notes: string | null;
   partner_id: string | null;
   partner?: Partner;
-  // legacy aliases
-  client_id?: string | null;
-  client?: Partner;
   created_at: string;
   updated_at: string;
 }
+
+// ─── Files ───────────────────────────────────────────────────────────────────
 
 export type FileNodeType = "folder" | "file";
 
@@ -161,6 +209,8 @@ export interface FileNode {
   created_by: string | null;
 }
 
+// ─── Brands ──────────────────────────────────────────────────────────────────
+
 export type BrandStatus = "active" | "archived" | "in_development";
 
 export interface Brand {
@@ -174,6 +224,13 @@ export interface Brand {
   public_one_liner: string | null;
   public_logo_variant: string | null;
   public_sort_order: number;
+  public_slug: string | null;
+  public_extended_description: string | null;
+  public_show_case_study: boolean;
+  hero_image_path: string | null;
+  card_bg_color: string | null;
+  heading_font: string | null;
+  body_font: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -210,16 +267,24 @@ export interface BrandLogo {
   uploaded_at: string;
 }
 
+export interface BrandCardData extends Brand {
+  brand_colours: BrandColour[];
+  brand_logos: BrandLogo[];
+}
+
+// ─── Contact ─────────────────────────────────────────────────────────────────
+
 export interface ContactSubmission {
   id: string;
   name: string | null;
   company: string | null;
   email: string | null;
   message: string | null;
+  read: boolean;
   created_at: string;
 }
 
-// ─── New V2 types ─────────────────────────────────────────────────────────────
+// ─── Projects ────────────────────────────────────────────────────────────────
 
 export interface Project {
   id: string;
@@ -235,6 +300,8 @@ export interface Project {
   updated_at: string;
 }
 
+// ─── Time Logs ───────────────────────────────────────────────────────────────
+
 export interface TimeLog {
   id: string;
   project_id: string | null;
@@ -249,9 +316,19 @@ export interface TimeLog {
   created_at: string;
 }
 
+// ─── Equity ──────────────────────────────────────────────────────────────────
+
+export type EquityEntryType =
+  | "capital_injection"
+  | "sweat_equity"
+  | "distribution"
+  | "loan_in"
+  | "loan_out"
+  | "repayment";
+
 export interface EquityEntry {
   id: string;
-  entry_type: "capital" | "sweat" | "distribution";
+  entry_type: EquityEntryType;
   owner_id: string | null;
   partner_id: string | null;
   project_id: string | null;
@@ -261,9 +338,12 @@ export interface EquityEntry {
   hours: number | null;
   hourly_rate_used: number | null;
   amount: number;
+  currency: string | null;
   notes: string | null;
   created_at: string;
 }
+
+// ─── Retainers ───────────────────────────────────────────────────────────────
 
 export interface Retainer {
   id: string;
@@ -282,6 +362,8 @@ export interface Retainer {
   updated_at: string;
 }
 
+// ─── Invoice Payments ────────────────────────────────────────────────────────
+
 export interface InvoicePayment {
   id: string;
   document_id: string;
@@ -291,6 +373,8 @@ export interface InvoicePayment {
   notes: string | null;
   created_at: string;
 }
+
+// ─── Drawings ────────────────────────────────────────────────────────────────
 
 export interface Drawing {
   id: string;
@@ -303,6 +387,8 @@ export interface Drawing {
   created_at: string;
 }
 
+// ─── Expense Categories ──────────────────────────────────────────────────────
+
 export interface ExpenseCategory {
   id: string;
   name: string;
@@ -314,6 +400,8 @@ export interface ExpenseCategory {
   is_archived: boolean;
 }
 
+// ─── Owner Settings ──────────────────────────────────────────────────────────
+
 export interface OwnerSettings {
   id: string;
   user_id: string;
@@ -321,4 +409,30 @@ export interface OwnerSettings {
   initials: string | null;
   hourly_rate: number | null;
   updated_at: string;
+}
+
+// ─── Expense Inbox ───────────────────────────────────────────────────────────
+
+export interface ExpenseInboxItem {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  raw_image_path: string | null;
+  ai_vendor_name: string | null;
+  ai_date: string | null;
+  ai_total_amount: number | null;
+  ai_vat_amount: number | null;
+  ai_currency: string | null;
+  ai_suggested_category: string | null;
+  ai_confidence: number | null;
+  ai_notes: string | null;
+  vendor_name: string | null;
+  expense_date: string | null;
+  total_amount: number | null;
+  vat_amount: number | null;
+  currency: string;
+  category: string | null;
+  notes: string | null;
+  expense_id: string | null;
+  reviewed_at: string | null;
+  created_at: string;
 }

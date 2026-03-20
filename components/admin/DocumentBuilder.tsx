@@ -123,7 +123,7 @@ const TYPE_META: Record<
     label: "Invoice",
     segment: "invoices",
     prefixKey: "invoice_prefix",
-    statuses: ["draft", "sent", "paid", "overdue", "cancelled"],
+    statuses: ["draft", "sent", "paid", "overdue", "cancelled", "partially_paid"],
     secondDateLabel: "Due Date",
   },
   quote: {
@@ -198,8 +198,8 @@ export default function DocumentBuilder({
       ? (initialDoc?.valid_until ?? addDays(defaultIssue, settings.quote_validity_days ?? 30))
       : (initialDoc?.due_date ?? addDays(defaultIssue, 30));
 
-  const [clientId, setClientId] = useState(
-    initialDoc?.partner_id ?? initialDoc?.client_id ?? initialPartnerId ?? initialClientId ?? ""
+  const [partnerId, setPartnerId] = useState(
+    initialDoc?.partner_id ?? initialPartnerId ?? initialClientId ?? ""
   );
   const [issueDate, setIssueDate] = useState(defaultIssue);
   const [secondDate, setSecondDate] = useState(defaultSecondDate);
@@ -285,8 +285,7 @@ export default function DocumentBuilder({
 
       const payload = {
         type,
-        partner_id: clientId || null,
-        client_id: clientId || null,
+        partner_id: partnerId || null,
         status: saveStatus,
         issue_date: issueDate || null,
         due_date: type !== "quote" ? (secondDate || null) : null,
@@ -320,14 +319,34 @@ export default function DocumentBuilder({
           .single();
 
         if (insertErr) throw insertErr;
+
+        if (saveStatus !== "draft") {
+          await supabase.from("document_events").insert({
+            document_id: data.id,
+            event_type: "status_changed",
+            detail: { from: "draft", to: saveStatus },
+          });
+        }
+
         router.push(`/admin/${meta.segment}/${data.id}`);
       } else {
+        const previousStatus = initialDoc!.status;
+
         const { error: updateErr } = await supabase
           .from("documents")
           .update(payload)
           .eq("id", initialDoc!.id);
 
         if (updateErr) throw updateErr;
+
+        if (previousStatus !== saveStatus) {
+          await supabase.from("document_events").insert({
+            document_id: initialDoc!.id,
+            event_type: saveStatus === "paid" ? "paid" : "status_changed",
+            detail: { from: previousStatus, to: saveStatus },
+          });
+        }
+
         router.refresh();
       }
     } catch (e: unknown) {
@@ -352,14 +371,14 @@ export default function DocumentBuilder({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Client */}
             <div className="sm:col-span-1">
-              <FieldLabel>Client</FieldLabel>
+              <FieldLabel>Partner</FieldLabel>
               <select
                 className={selectCls}
                 style={{ borderRadius: 0 }}
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
+                value={partnerId}
+                onChange={(e) => setPartnerId(e.target.value)}
               >
-                <option value="">— Select client —</option>
+                <option value="">— Select partner —</option>
                 {partnerList.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company_name}

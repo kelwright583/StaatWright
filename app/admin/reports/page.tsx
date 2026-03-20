@@ -259,39 +259,48 @@ function PnLTab() {
 
 // ─── Cash Flow Tab ────────────────────────────────────────────────────────────
 
+interface RetainerRow {
+  id: string;
+  name: string;
+  monthly_amount: number;
+  currency: string;
+  status: string;
+}
+
 function CashFlowTab() {
   const supabase = createClient();
-  const [window, setWindow] = useState(30);
+  const [days, setDays] = useState(30);
   const [outstandingInvoices, setOutstandingInvoices] = useState<(Document & { partner?: { company_name: string } })[]>([]);
-  const [recurringExpenses, setRecurringExpenses] = useState<Expense[]>([]);
+  const [retainers, setRetainers] = useState<RetainerRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() + window);
-      const [{ data: invData }, { data: expData }] = await Promise.all([
+      cutoff.setDate(cutoff.getDate() + days);
+      const [{ data: invData }, { data: retData }] = await Promise.all([
         supabase.from("documents")
           .select("*, partner:partners(company_name)")
           .eq("type", "invoice")
-          .in("status", ["sent", "overdue"])
+          .in("status", ["sent", "overdue", "partially_paid"])
           .lte("due_date", cutoff.toISOString().slice(0, 10)),
-        supabase.from("expenses")
-          .select("*")
-          .gte("date", new Date().toISOString().slice(0, 10))
-          .lte("date", cutoff.toISOString().slice(0, 10)),
+        supabase.from("retainers")
+          .select("id, name, monthly_amount, currency, status")
+          .eq("status", "active"),
       ]);
       setOutstandingInvoices((invData ?? []) as (Document & { partner?: { company_name: string } })[]);
-      setRecurringExpenses((expData ?? []) as Expense[]);
+      setRetainers((retData ?? []) as RetainerRow[]);
       setLoading(false);
     }
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [window]);
+  }, [days]);
 
   const totalInflows = outstandingInvoices.reduce((s, d) => s + (d.total ?? 0), 0);
-  const totalOutflows = recurringExpenses.reduce((s, e) => s + (e.amount_incl_vat ?? 0), 0);
+  const monthlyRetainerCost = retainers.reduce((s, r) => s + r.monthly_amount, 0);
+  const projectedMonths = days / 30;
+  const totalOutflows = monthlyRetainerCost * projectedMonths;
 
   return (
     <div className="space-y-6">
@@ -300,13 +309,13 @@ function CashFlowTab() {
           <button
             key={d}
             type="button"
-            onClick={() => setWindow(d)}
+            onClick={() => setDays(d)}
             className="px-4 py-1.5 border text-xs transition-colors"
             style={{
               borderRadius: 0, fontFamily: "var(--font-montserrat)",
-              borderColor: window === d ? "#1F2A38" : "#EAE4DC",
-              backgroundColor: window === d ? "#1F2A38" : "white",
-              color: window === d ? "white" : "#5C6E81",
+              borderColor: days === d ? "#1F2A38" : "#EAE4DC",
+              backgroundColor: days === d ? "#1F2A38" : "white",
+              color: days === d ? "white" : "#5C6E81",
             }}
           >
             {d}-day
@@ -322,7 +331,7 @@ function CashFlowTab() {
           <div className="bg-white border border-linen" style={{ borderRadius: 0 }}>
             <div className="px-4 py-3 border-b border-linen" style={{ backgroundColor: "rgba(234,228,220,0.5)" }}>
               <p className="text-xs text-steel uppercase tracking-widest font-medium" style={{ fontFamily: "var(--font-montserrat)" }}>
-                Expected Inflows (next {window} days)
+                Expected Inflows (next {days} days)
               </p>
             </div>
             {outstandingInvoices.length === 0 ? (
@@ -347,28 +356,31 @@ function CashFlowTab() {
             )}
           </div>
 
-          {/* Outflows */}
+          {/* Outflows — retainer-based projections */}
           <div className="bg-white border border-linen" style={{ borderRadius: 0 }}>
             <div className="px-4 py-3 border-b border-linen" style={{ backgroundColor: "rgba(234,228,220,0.5)" }}>
               <p className="text-xs text-steel uppercase tracking-widest font-medium" style={{ fontFamily: "var(--font-montserrat)" }}>
-                Expected Outflows (next {window} days)
+                Projected Outflows — Active Retainers ({Math.round(projectedMonths * 10) / 10} months)
               </p>
             </div>
-            {recurringExpenses.length === 0 ? (
-              <p className="px-4 py-4 text-steel text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>None expected.</p>
+            {retainers.length === 0 ? (
+              <p className="px-4 py-4 text-steel text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>No active retainers.</p>
             ) : (
               <table className="w-full text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>
                 <tbody>
-                  {recurringExpenses.map((exp) => (
-                    <tr key={exp.id} className="border-b border-linen last:border-0">
-                      <td className="px-4 py-2 text-ink">{exp.description}</td>
-                      <td className="px-4 py-2 text-steel">{exp.category ?? "—"}</td>
-                      <td className="px-4 py-2 text-steel">{formatDate(exp.date)}</td>
-                      <td className="px-4 py-2 text-ink text-right">{formatZAR(exp.amount_incl_vat ?? 0)}</td>
+                  {retainers.map((ret) => (
+                    <tr key={ret.id} className="border-b border-linen last:border-0">
+                      <td className="px-4 py-2 text-ink">{ret.name}</td>
+                      <td className="px-4 py-2 text-steel">
+                        {formatZAR(ret.monthly_amount)}/mo
+                      </td>
+                      <td className="px-4 py-2 text-ink text-right">
+                        {formatZAR(ret.monthly_amount * projectedMonths)}
+                      </td>
                     </tr>
                   ))}
                   <tr className="border-t-2 border-navy">
-                    <td colSpan={3} className="px-4 py-2 font-bold text-navy text-xs uppercase tracking-wider">Total</td>
+                    <td colSpan={2} className="px-4 py-2 font-bold text-navy text-xs uppercase tracking-wider">Total</td>
                     <td className="px-4 py-2 font-bold text-navy text-right">{formatZAR(totalOutflows)}</td>
                   </tr>
                 </tbody>
@@ -384,11 +396,11 @@ function CashFlowTab() {
           <span className="text-ink">{formatZAR(totalInflows)}</span>
         </div>
         <div className="flex justify-between text-sm mt-1">
-          <span className="text-steel">Expected Outflows</span>
+          <span className="text-steel">Projected Outflows (retainers)</span>
           <span className="text-ink">({formatZAR(totalOutflows)})</span>
         </div>
         <div className="border-t border-linen mt-2 pt-2 flex justify-between font-bold text-sm">
-          <span className="text-navy">Net Forecast</span>
+          <span className="text-navy">Net Cash Flow Projection</span>
           <span style={{ color: (totalInflows - totalOutflows) >= 0 ? "#16a34a" : "#dc2626" }}>
             {formatZAR(totalInflows - totalOutflows)}
           </span>
@@ -656,13 +668,13 @@ function PerPartnerTab() {
   return (
     <div className="space-y-6">
       <div className="max-w-xs">
-        <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Select Client</label>
+        <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Select Partner</label>
         <select
           value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
           className="border border-linen bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-navy w-full"
           style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
         >
-          <option value="">— Select client —</option>
+          <option value="">— Select partner —</option>
           {partners.map((p) => <option key={p.id} value={p.id}>{p.company_name}</option>)}
         </select>
       </div>
@@ -675,7 +687,7 @@ function PerPartnerTab() {
             { label: "Total Invoiced",  value: formatZAR(data.invoiced) },
             { label: "Total Paid",      value: formatZAR(data.paid) },
             { label: "Outstanding",     value: formatZAR(data.outstanding) },
-            { label: "Client Expenses",value: formatZAR(data.expenses) },
+            { label: "Partner Expenses", value: formatZAR(data.expenses) },
             { label: "Net Margin",      value: formatZAR(margin), highlight: true, positive: margin >= 0 },
           ].map((card) => (
             <div key={card.label} className="bg-white border border-linen p-5 flex flex-col gap-1" style={{ borderRadius: 0 }}>
@@ -707,9 +719,9 @@ export default function ReportsPage() {
 
   const tabs = [
     { value: "pl",            label: "P&L" },
-    { value: "cashflow",      label: "Cash Flow" },
+    { value: "cashflow",      label: "Cash Flow Projection" },
     { value: "drawings",      label: "Drawings" },
-    { value: "per_partner",   label: "Per-Client" },
+    { value: "per_partner",   label: "Per-Partner" },
     { value: "aging",         label: "AR Aging",      href: "/admin/reports/aging" },
     { value: "balance_sheet", label: "Balance Sheet", href: "/admin/reports/balance-sheet" },
     { value: "vat",           label: "VAT Report",    href: "/admin/reports/vat" },

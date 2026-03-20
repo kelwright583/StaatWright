@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Refreshes the Supabase session on every admin request so auth cookies
 // stay alive. Redirects are handled in app/admin/layout.tsx — not here.
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -34,5 +34,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/bookkeeper/:path*"],
 };
