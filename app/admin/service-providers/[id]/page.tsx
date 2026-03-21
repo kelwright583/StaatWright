@@ -45,7 +45,7 @@ export default function ServiceProviderDetailPage({ params }: { params: Promise<
           .order("issue_date", { ascending: false }),
       ]);
       if (sp) setProvider(sp as ServiceProvider);
-      setBills((b ?? []) as BillRow[]);
+      setBills((b ?? []) as unknown as BillRow[]);
       setLoading(false);
     }
     load();

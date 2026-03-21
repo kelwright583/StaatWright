@@ -28,6 +28,12 @@ interface PartnerData {
   address: string | null;
   website: string | null;
   vat_number: string | null;
+  reg_number: string | null;
+  bank_name: string | null;
+  bank_account_holder: string | null;
+  bank_account_number: string | null;
+  bank_branch_code: string | null;
+  bank_account_type: string | null;
   relationship_type: string | null;
   status: string | null;
   founding_date: string | null;
