@@ -1,8 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Refreshes the Supabase session on every admin request so auth cookies
-// stay alive. Redirects are handled in app/admin/layout.tsx — not here.
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -28,7 +26,23 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh the session — keeps the JWT alive in cookies
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Protect admin routes (except the login page itself)
+  const isAdminPath = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
+  // Protect bookkeeper routes (except the login page itself)
+  const isBookkeeperPath = pathname.startsWith("/bookkeeper") && !pathname.startsWith("/bookkeeper/login");
+
+  if (!user) {
+    if (isAdminPath) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+    if (isBookkeeperPath) {
+      return NextResponse.redirect(new URL("/bookkeeper/login", request.url));
+    }
+  }
 
   return response;
 }

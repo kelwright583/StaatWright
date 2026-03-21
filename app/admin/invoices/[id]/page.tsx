@@ -6,6 +6,7 @@ import DocumentBuilder from "@/components/admin/DocumentBuilder";
 import PartialPayments from "@/components/admin/PartialPayments";
 import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
 import type { Document, Partner, CompanySettings } from "@/lib/types";
+import type { SimpleQuote } from "@/components/admin/DocumentBuilder";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,34 +22,46 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // Fetch invoice payments to calculate amount paid
-  const [{ data: docData }, { data: partnersData }, { data: settingsData }, { data: paymentsData }] =
-    await Promise.all([
-      supabase.from("documents").select("*").eq("id", id).single(),
-      supabase.from("partners").select("*").order("company_name"),
-      supabase.from("company_settings").select("*").single(),
-      supabase.from("invoice_payments").select("amount").eq("document_id", id),
-    ]);
+  const [
+    { data: docData },
+    { data: venturesData },
+    { data: clientsData },
+    { data: settingsData },
+    { data: paymentsData },
+  ] = await Promise.all([
+    supabase.from("documents").select("*").eq("id", id).single(),
+    supabase.from("partners").select("*").eq("type", "venture").order("company_name"),
+    supabase.from("partners").select("*").eq("type", "client").order("company_name"),
+    supabase.from("company_settings").select("*").single(),
+    supabase.from("invoice_payments").select("amount").eq("document_id", id),
+  ]);
 
   if (!docData || docData.type !== "invoice") notFound();
 
   const doc = docData as Document;
-  const partners = (partnersData ?? []) as Partner[];
+  const ventures = (venturesData ?? []) as Partner[];
+  const clients = (clientsData ?? []) as Partner[];
   const settings = settingsData as CompanySettings;
 
-  const docPartner = partners.find((p) => p.id === doc.partner_id) ?? null;
+  const docClient = clients.find((p) => p.id === doc.partner_id) ?? null;
   const showSendButton = doc.status === "draft";
   const showPayments = PAYMENT_STATUSES.includes(doc.status);
 
-  // Multi-currency
-  const currency = (doc as Document & { currency?: string | null }).currency;
+  const currency = doc.currency;
   const showCurrencyBadge = !!currency && currency !== "ZAR";
 
-  // Linked credit notes — graceful: only query if linked_document_id column exists
+  // Accepted quotes for this invoice's client (to allow linking)
+  const { data: quotesData } = await supabase
+    .from("documents")
+    .select("id, number, partner_id, venture_id, line_items, subtotal, total")
+    .eq("type", "quote")
+    .eq("status", "accepted")
+    .order("created_at", { ascending: false });
+  const acceptedQuotes = (quotesData ?? []) as SimpleQuote[];
+
+  // Linked credit notes
   const { data: linkedCreditNotes, error: cnError } = await supabase
     .from("documents")
     .select("id, number, total, status")
@@ -56,15 +69,11 @@ export default async function InvoiceDetailPage({ params }: Props) {
     .eq("linked_document_id", id);
 
   const creditNotes = (cnError ? [] : (linkedCreditNotes ?? [])) as {
-    id: string;
-    number: string;
-    total: number | null;
-    status: string;
+    id: string; number: string; total: number | null; status: string;
   }[];
 
   const totalPaid = (paymentsData ?? []).reduce(
-    (sum: number, p: { amount: number }) => sum + (p.amount ?? 0),
-    0
+    (sum: number, p: { amount: number }) => sum + (p.amount ?? 0), 0
   );
   const totalCreditNotes = creditNotes.reduce((sum, cn) => sum + (cn.total ?? 0), 0);
   const effectiveBalance = (doc.total ?? 0) - totalPaid - totalCreditNotes;
@@ -91,8 +100,10 @@ export default async function InvoiceDetailPage({ params }: Props) {
         <DocumentBuilder
           type="invoice"
           initialDoc={doc}
-          partners={partners}
+          ventures={ventures}
+          clients={clients}
           settings={settings}
+          acceptedQuotes={acceptedQuotes}
         />
 
         {showSendButton && (
@@ -100,8 +111,8 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <SendInvoiceButton
               documentId={doc.id}
               invoiceNumber={doc.number}
-              partnerEmail={docPartner?.email ?? null}
-              partnerName={docPartner?.company_name ?? null}
+              partnerEmail={docClient?.email ?? null}
+              partnerName={docClient?.company_name ?? null}
               total={doc.total ?? 0}
             />
           </div>

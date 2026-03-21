@@ -28,12 +28,12 @@ export async function GET(request: Request) {
     return new Response("Missing from/to query parameters", { status: 400 });
   }
 
-  // Fetch paid invoices (income)
+  // Fetch paid invoices (income) — also include partially_paid as they represent real received revenue
   const { data: invoices, error: invErr } = await supabase
     .from("documents")
-    .select("number, issue_date, subtotal, vat_total, total, partners(company_name)")
+    .select("number, issue_date, subtotal, vat_total, total, currency, zar_equivalent, partners(company_name)")
     .eq("type", "invoice")
-    .eq("status", "paid")
+    .in("status", ["paid", "partially_paid"])
     .gte("issue_date", from)
     .lte("issue_date", to)
     .order("issue_date", { ascending: true });
@@ -50,8 +50,26 @@ export async function GET(request: Request) {
 
   if (expErr) return new Response(expErr.message, { status: 500 });
 
+  // Fetch paid bills (accounts payable settled in the period)
+  const { data: bills, error: billErr } = await supabase
+    .from("bills")
+    .select("issue_date, description, amount_excl_vat, vat_amount, total_amount, currency, zar_equivalent, service_provider:service_providers(name), venture:partners(company_name)")
+    .eq("status", "paid")
+    .gte("issue_date", from)
+    .lte("issue_date", to)
+    .order("issue_date", { ascending: true });
+
+  if (billErr) return new Response(billErr.message, { status: 500 });
+
   // ── Totals ────────────────────────────────────────────────────────────────────
-  const totalIncome = (invoices ?? []).reduce((s, r) => s + (r.subtotal ?? 0), 0);
+  // For foreign-currency invoices, use zar_equivalent if available so all amounts are in ZAR.
+  const totalIncome = (invoices ?? []).reduce((s, r) => {
+    const isForex = r.currency && r.currency !== "ZAR";
+    const amount = isForex
+      ? (r.zar_equivalent ?? r.subtotal ?? 0)
+      : (r.subtotal ?? 0);
+    return s + amount;
+  }, 0);
 
   // Group expenses by category
   const expenseByCategory: Record<string, number> = {};
@@ -59,6 +77,17 @@ export async function GET(request: Request) {
     const cat = exp.category ?? "Uncategorised";
     expenseByCategory[cat] = (expenseByCategory[cat] ?? 0) + (exp.amount_excl_vat ?? 0);
   }
+
+  // Add paid bills into "Bills Paid" category (or per-category if we ever add category to bills)
+  for (const bill of bills ?? []) {
+    const isForex = bill.currency && bill.currency !== "ZAR";
+    const amt = isForex
+      ? (bill.zar_equivalent ?? bill.total_amount ?? 0)
+      : (bill.amount_excl_vat ?? bill.total_amount ?? 0);
+    const cat = "Bills Paid";
+    expenseByCategory[cat] = (expenseByCategory[cat] ?? 0) + amt;
+  }
+
   const totalExpenses = Object.values(expenseByCategory).reduce((a, b) => a + b, 0);
   const netProfit = totalIncome - totalExpenses;
 
@@ -164,13 +193,15 @@ export async function GET(request: Request) {
 
   for (const inv of invoices ?? []) {
     const partner = (inv.partners as { company_name?: string } | null)?.company_name ?? "";
+    const isForex = inv.currency && inv.currency !== "ZAR";
+    const subtotalZAR = isForex ? (inv.zar_equivalent ?? inv.subtotal ?? 0) : (inv.subtotal ?? 0);
     const r = detail.addRow([
       inv.number,
       partner,
       inv.issue_date ? new Date(inv.issue_date) : null,
-      inv.subtotal ?? 0,
+      subtotalZAR,
       inv.vat_total ?? 0,
-      inv.total ?? 0,
+      isForex ? (inv.zar_equivalent ?? inv.total ?? 0) : (inv.total ?? 0),
     ]);
     r.getCell(3).numFmt = dateFmt;
     r.getCell(4).numFmt = zarFmt;
@@ -233,6 +264,63 @@ export async function GET(request: Request) {
     cell.font = { color: { argb: WHITE }, bold: true, size: 12 };
   });
   netDetailRow.getCell(4).numFmt = zarFmt;
+
+  // ── Sheet 3: Bills ────────────────────────────────────────────────────────
+  if ((bills ?? []).length > 0) {
+    const billsSheet = workbook.addWorksheet("Bills Paid");
+
+    billsSheet.addRow(["BILLS PAID"]).eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NAVY } };
+      cell.font = { color: { argb: WHITE }, bold: true, size: 12 };
+    });
+
+    const billHeaders = billsSheet.addRow(["Date", "Provider", "Venture", "Description", "Excl VAT", "VAT", "Total", "Currency", "ZAR Equiv."]);
+    styleHeader(billHeaders);
+    billsSheet.getColumn(1).width = 14;
+    billsSheet.getColumn(2).width = 28;
+    billsSheet.getColumn(3).width = 24;
+    billsSheet.getColumn(4).width = 36;
+    billsSheet.getColumn(5).width = 16;
+    billsSheet.getColumn(6).width = 14;
+    billsSheet.getColumn(7).width = 16;
+    billsSheet.getColumn(8).width = 10;
+    billsSheet.getColumn(9).width = 16;
+
+    let billsTotal = 0;
+    for (const b of bills ?? []) {
+      const isForex = b.currency && b.currency !== "ZAR";
+      const zarAmt = isForex ? (b.zar_equivalent ?? b.total_amount ?? 0) : (b.total_amount ?? 0);
+      billsTotal += zarAmt;
+      const provider = (b.service_provider as { name?: string } | null)?.name ?? "";
+      const venture = (b.venture as { company_name?: string } | null)?.company_name ?? "StaatWright";
+      const r = billsSheet.addRow([
+        b.issue_date ? new Date(b.issue_date) : null,
+        provider,
+        venture,
+        b.description ?? "",
+        b.amount_excl_vat ?? 0,
+        b.vat_amount ?? 0,
+        b.total_amount ?? 0,
+        b.currency ?? "ZAR",
+        zarAmt,
+      ]);
+      r.getCell(1).numFmt = dateFmt;
+      r.getCell(5).numFmt = zarFmt;
+      r.getCell(6).numFmt = zarFmt;
+      r.getCell(7).numFmt = zarFmt;
+      r.getCell(9).numFmt = zarFmt;
+      if (r.number % 2 === 0) {
+        r.eachCell((cell) => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CREAM } };
+        });
+      }
+    }
+
+    const billTotalRow = billsSheet.addRow(["", "", "TOTAL", "", "", "", "", "", billsTotal]);
+    billTotalRow.getCell(3).font = { bold: true };
+    billTotalRow.getCell(9).numFmt = zarFmt;
+    billTotalRow.getCell(9).font = { bold: true };
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `staatwright-pl-${from}-${to}.xlsx`;

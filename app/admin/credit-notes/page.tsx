@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
@@ -9,13 +10,8 @@ function formatZAR(amount: number): string {
 }
 
 const STATUS_MAP: Record<string, { dot: string; label: string }> = {
-  draft:          { dot: "bg-[#5C6E81]",  label: "Draft" },
-  issued:         { dot: "bg-amber-400",  label: "Issued" },
-  partially_paid: { dot: "bg-indigo-500", label: "Partially Paid" },
-  paid:           { dot: "bg-green-500",  label: "Paid" },
-  sent:           { dot: "bg-amber-500",  label: "Sent" },
-  overdue:        { dot: "bg-red-500",    label: "Overdue" },
-  cancelled:      { dot: "bg-[#5C6E81]",  label: "Cancelled" },
+  draft:  { dot: "bg-[#5C6E81]", label: "Draft" },
+  issued: { dot: "bg-amber-400", label: "Issued" },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -32,75 +28,61 @@ const STATUSES = ["draft", "issued"];
 
 type CreditNoteRow = Document & {
   partner?: { company_name: string } | null;
+  venture?: { company_name: string } | null;
   linked_invoice?: { id: string; number: string } | null;
 };
 
 interface Props {
-  searchParams: Promise<{ partner?: string; status?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ partner?: string; venture?: string; status?: string; from?: string; to?: string }>;
 }
 
 export default async function CreditNotesPage({ searchParams }: Props) {
   const params = await searchParams;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: partnersData } = await supabase
-    .from("partners")
-    .select("id, company_name")
-    .order("company_name");
-  const partners = (partnersData ?? []) as Pick<Partner, "id" | "company_name">[];
+  const [{ data: clientsData }, { data: venturesData }] = await Promise.all([
+    supabase.from("partners").select("id, company_name").eq("type", "client").order("company_name"),
+    supabase.from("partners").select("id, company_name").eq("type", "venture").order("company_name"),
+  ]);
+
+  const clients = (clientsData ?? []) as Pick<Partner, "id" | "company_name">[];
+  const ventures = (venturesData ?? []) as Pick<Partner, "id" | "company_name">[];
 
   let query = supabase
     .from("documents")
-    .select("*, partner:partners(company_name), linked_invoice:documents!linked_document_id(id, number)")
+    .select("*, partner:partners!partner_id(company_name), venture:partners!venture_id(company_name), linked_invoice:documents!linked_document_id(id, number)")
     .eq("type", "credit_note")
     .order("created_at", { ascending: false });
 
   if (params.partner) query = query.eq("partner_id", params.partner);
+  if (params.venture) query = query.eq("venture_id", params.venture);
   if (params.status) query = query.eq("status", params.status);
   if (params.from) query = query.gte("issue_date", params.from);
   if (params.to) query = query.lte("issue_date", params.to);
 
   const { data, error } = await query;
 
-  // Fallback if linked_document_id column doesn't exist yet
   let documents: CreditNoteRow[];
-  let hasLinkedColumn = true;
   if (error) {
-    hasLinkedColumn = false;
-    let fallbackQuery = supabase
+    const { data: fallback } = await supabase
       .from("documents")
-      .select("*, partner:partners(company_name)")
+      .select("*, partner:partners!partner_id(company_name), venture:partners!venture_id(company_name)")
       .eq("type", "credit_note")
       .order("created_at", { ascending: false });
-
-    if (params.partner) fallbackQuery = fallbackQuery.eq("partner_id", params.partner);
-    if (params.status) fallbackQuery = fallbackQuery.eq("status", params.status);
-    if (params.from) fallbackQuery = fallbackQuery.gte("issue_date", params.from);
-    if (params.to) fallbackQuery = fallbackQuery.lte("issue_date", params.to);
-
-    const { data: fallbackData } = await fallbackQuery;
-    documents = (fallbackData ?? []) as CreditNoteRow[];
+    documents = (fallback ?? []) as CreditNoteRow[];
   } else {
     documents = (data ?? []) as CreditNoteRow[];
   }
 
   return (
     <>
-      <AdminTopBar
-        title="Credit Notes"
-        user={user ? { email: user.email ?? "" } : null}
-      />
+      <AdminTopBar title="Credit Notes" user={user ? { email: user.email ?? "" } : null} />
       <main className="pt-[56px] p-8">
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h1
-              className="text-[#1F2A38] font-bold text-xl"
-              style={{ fontFamily: "var(--font-inter)" }}
-            >
+            <h1 className="text-[#1F2A38] font-bold text-xl" style={{ fontFamily: "var(--font-inter)" }}>
               All Credit Notes
             </h1>
             <Link
@@ -112,11 +94,14 @@ export default async function CreditNotesPage({ searchParams }: Props) {
             </Link>
           </div>
 
-          <DocumentFilters
-            partners={partners}
-            statuses={STATUSES}
-            basePath="/admin/credit-notes"
-          />
+          <Suspense fallback={null}>
+            <DocumentFilters
+              partners={clients}
+              ventures={ventures}
+              statuses={STATUSES}
+              basePath="/admin/credit-notes"
+            />
+          </Suspense>
 
           <div className="bg-white border border-[#EAE4DC] overflow-x-auto" style={{ borderRadius: 0 }}>
             {documents.length === 0 ? (
@@ -130,15 +115,12 @@ export default async function CreditNotesPage({ searchParams }: Props) {
                 <thead>
                   <tr className="border-b border-[#EAE4DC]" style={{ backgroundColor: "rgba(234,228,220,0.5)" }}>
                     <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">#</th>
-                    <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Partner</th>
+                    <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Venture</th>
+                    <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Client</th>
                     <th className="text-right px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Amount</th>
                     <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Status</th>
                     <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Issue Date</th>
-                    {hasLinkedColumn && (
-                      <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
-                        Linked Invoice
-                      </th>
-                    )}
+                    <th className="text-left px-4 py-3 text-xs text-[#5C6E81] uppercase tracking-wider font-medium">Linked Invoice</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -149,36 +131,27 @@ export default async function CreditNotesPage({ searchParams }: Props) {
                       className="border-b border-[#EAE4DC] last:border-0 hover:bg-[#EAE4DC]/20 transition-colors"
                     >
                       <td className="px-4 py-3 text-[#1A1A1A] font-medium">{doc.number}</td>
-                      <td className="px-4 py-3 text-[#1A1A1A]">
-                        {doc.partner?.company_name ?? "—"}
+                      <td className="px-4 py-3 text-[#5C6E81] text-xs">
+                        {doc.venture?.company_name ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-[#1A1A1A] text-right">
-                        {formatZAR(doc.total ?? 0)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={doc.status} />
-                      </td>
+                      <td className="px-4 py-3 text-[#1A1A1A]">{doc.partner?.company_name ?? "—"}</td>
+                      <td className="px-4 py-3 text-[#1A1A1A] text-right">{formatZAR(doc.total ?? 0)}</td>
+                      <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                       <td className="px-4 py-3 text-[#5C6E81]">
                         {doc.issue_date
-                          ? new Date(doc.issue_date).toLocaleDateString("en-ZA", {
-                              day: "2-digit", month: "short", year: "numeric",
-                            })
+                          ? new Date(doc.issue_date).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })
                           : "—"}
                       </td>
-                      {hasLinkedColumn && (
-                        <td className="px-4 py-3 text-[#5C6E81]">
-                          {doc.linked_invoice ? (
-                            <Link
-                              href={`/admin/invoices/${doc.linked_invoice.id}`}
-                              className="text-xs text-[#5C6E81] hover:text-[#1F2A38] underline transition-colors"
-                            >
-                              {doc.linked_invoice.number}
-                            </Link>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                      )}
+                      <td className="px-4 py-3 text-[#5C6E81]">
+                        {doc.linked_invoice ? (
+                          <Link
+                            href={`/admin/invoices/${doc.linked_invoice.id}`}
+                            className="text-xs text-[#5C6E81] hover:text-[#1F2A38] underline transition-colors"
+                          >
+                            {doc.linked_invoice.number}
+                          </Link>
+                        ) : "—"}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <Link
                           href={`/admin/credit-notes/${doc.id}`}

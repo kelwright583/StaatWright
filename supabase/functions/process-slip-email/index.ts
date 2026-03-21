@@ -138,10 +138,29 @@ async function callOpenAIVision(
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
+//
+// Required Supabase Function secrets:
+//   SUPABASE_URL               — auto-injected by Supabase
+//   SUPABASE_SERVICE_ROLE_KEY  — auto-injected by Supabase
+//   OPENAI_API_KEY             — your OpenAI key for vision parsing
+//   POSTMARK_WEBHOOK_TOKEN     — the webhook token from your Postmark inbound server settings
+//                                (Settings → Inbound → Webhook → Include HTTP Auth header)
+//   RESEND_API_KEY             — for admin notification emails
+//   ADMIN_NOTIFY_EMAIL         — email address to notify when a new slip arrives
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  // Verify Postmark webhook token — set POSTMARK_WEBHOOK_TOKEN in Supabase Function secrets
+  const webhookToken = Deno.env.get("POSTMARK_WEBHOOK_TOKEN");
+  if (webhookToken) {
+    const signature = req.headers.get("X-Postmark-Signature");
+    if (signature !== webhookToken) {
+      console.error("Webhook signature mismatch — request rejected.");
+      return new Response("Forbidden", { status: 403 });
+    }
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -258,13 +277,47 @@ Deno.serve(async (req: Request) => {
 
       console.log(`Inserted expense_inbox record for: ${attachment.Name}`);
 
-      // Notification stub — log for now, wire to Resend when key available
+      // Notify admin that a new slip is waiting for review
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      const adminEmail = Deno.env.get("ADMIN_NOTIFY_EMAIL") ?? "contact@staatwright.co.za";
+      const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "noreply@staatwright.co.za";
+      const appUrl = Deno.env.get("APP_URL") ?? "https://staatwright.co.za";
+
       if (resendApiKey) {
-        // TODO: send notification email via Resend
-        console.log("Resend notification stub — would notify admin of new slip.");
+        const vendorLabel = aiData.vendor_name ?? attachment.Name;
+        const amountLabel = aiData.total_amount != null
+          ? `${aiData.total_amount} ${aiData.currency ?? "ZAR"}`
+          : "Unknown amount";
+        const confidenceLabel = aiData.confidence != null
+          ? `${Math.round(aiData.confidence * 100)}%`
+          : "Unknown";
+
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: adminEmail,
+            subject: `New expense slip received — ${vendorLabel}`,
+            text: [
+              "A new slip has been received and is waiting in your expense inbox.",
+              "",
+              `Vendor:     ${vendorLabel}`,
+              `Amount:     ${amountLabel}`,
+              `Date:       ${aiData.date ?? "Unknown"}`,
+              `Category:   ${aiData.suggested_category ?? "Unknown"}`,
+              `Confidence: ${confidenceLabel}`,
+              "",
+              `Review it at: ${appUrl}/admin/expenses`,
+            ].join("\n"),
+          }),
+        });
+        console.log(`Admin notification sent to ${adminEmail}`);
       } else {
-        console.log("Notification stub: new slip received and queued for review.");
+        console.log("Notification stub: new slip received — RESEND_API_KEY not set.");
       }
 
       results.push({ filename: attachment.Name, success: true });

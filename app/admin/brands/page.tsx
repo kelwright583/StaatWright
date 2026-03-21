@@ -44,7 +44,15 @@ export default async function BrandsPage() {
         user={user ? { email: user.email ?? "" } : null}
       />
 
-      <main className="pt-[56px] p-8">
+      <main className="pt-[56px]">
+        <div className="bg-amber-50 border-b border-amber-200 px-8 py-3">
+          <p className="text-xs text-amber-700" style={{ fontFamily: "var(--font-montserrat)" }}>
+            Brand identities are now managed from each Partner&apos;s Brand &amp; Identity tab.
+            This page shows a global overview of all brands.
+          </p>
+        </div>
+
+        <div className="p-8">
         {/* Header row */}
         <div className="flex items-center justify-between mb-6">
           <h2
@@ -134,6 +142,7 @@ export default async function BrandsPage() {
             ))}
           </div>
         )}
+        </div>
       </main>
     </>
   );

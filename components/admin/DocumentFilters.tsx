@@ -1,20 +1,22 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 interface Props {
   partners: { id: string; company_name: string }[];
   statuses: string[];
   basePath: string;
+  ventures?: { id: string; company_name: string }[];
 }
 
-export default function DocumentFilters({ partners, statuses, basePath }: Props) {
+export default function DocumentFilters({ partners, statuses, basePath, ventures }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const currentPartner = searchParams.get("partner") ?? "";
+  const currentVenture = searchParams.get("venture") ?? "";
   const currentStatus = searchParams.get("status") ?? "";
   const currentFrom = searchParams.get("from") ?? "";
   const currentTo = searchParams.get("to") ?? "";
@@ -35,15 +37,39 @@ export default function DocumentFilters({ partners, statuses, basePath }: Props)
     [searchParams, basePath, router]
   );
 
+  const hasFilters = !!(currentPartner || currentVenture || currentStatus || currentFrom || currentTo);
+
   return (
     <div
       className="bg-white border border-[#EAE4DC] p-4 mb-6 flex flex-wrap items-end gap-4"
       style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
     >
-      {/* Partner */}
+      {/* Venture */}
+      {ventures && ventures.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
+            Venture
+          </label>
+          <select
+            value={currentVenture}
+            onChange={(e) => navigate({ venture: e.target.value })}
+            className="border border-[#EAE4DC] bg-white px-3 py-2 text-sm text-[#1A1A1A] min-w-[160px]"
+            style={{ borderRadius: 0 }}
+          >
+            <option value="">All Ventures</option>
+            {ventures.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.company_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Partner (client billed) */}
       <div className="flex flex-col gap-1">
         <label className="text-xs text-[#5C6E81] uppercase tracking-wider font-medium">
-          Partner
+          Client
         </label>
         <select
           value={currentPartner}
@@ -51,7 +77,7 @@ export default function DocumentFilters({ partners, statuses, basePath }: Props)
           className="border border-[#EAE4DC] bg-white px-3 py-2 text-sm text-[#1A1A1A] min-w-[180px]"
           style={{ borderRadius: 0 }}
         >
-          <option value="">All Partners</option>
+          <option value="">All Clients</option>
           {partners.map((p) => (
             <option key={p.id} value={p.id}>
               {p.company_name}
@@ -124,7 +150,7 @@ export default function DocumentFilters({ partners, statuses, basePath }: Props)
       </div>
 
       {/* Clear */}
-      {(currentPartner || currentStatus || currentFrom || currentTo) && (
+      {hasFilters && (
         <button
           type="button"
           onClick={() => router.push(basePath)}

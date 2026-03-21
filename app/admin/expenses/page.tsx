@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AdminTopBar from "@/components/admin/AdminTopBar";
+import { formatZAR, formatDate } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -46,21 +47,6 @@ const FALLBACK_CATEGORIES = [
   "Other",
 ];
 
-function formatZAR(amount: number): string {
-  return `R ${amount.toLocaleString("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-ZA", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -89,6 +75,7 @@ function last12Months(): { value: string; label: string }[] {
 
 export default function ExpensesPage() {
   const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Data
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -117,6 +104,12 @@ export default function ExpensesPage() {
   const [formPartnerId, setFormPartnerId] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formSlip, setFormSlip] = useState<File | null>(null);
+
+  // OCR state
+  const [slipDragging, setSlipDragging] = useState(false);
+  const [slipUploading, setSlipUploading] = useState(false);
+  const [slipOcring, setSlipOcring] = useState(false);
+  const [slipOcrNote, setSlipOcrNote] = useState<string | null>(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -268,11 +261,71 @@ export default function ExpensesPage() {
     setFormPartnerId("");
     setFormNotes("");
     setFormSlip(null);
+    setSlipOcrNote(null);
+    setSlipDragging(false);
     setShowAddForm(false);
     setSaving(false);
     loadData();
   }
 
+  // ── OCR slip processing ────────────────────────────────────────────────────
+
+  const processSlipFile = useCallback(async (file: File) => {
+    setFormSlip(file);
+    setSlipOcrNote(null);
+    setSlipUploading(true);
+
+    const tmpId = `tmp-${Date.now()}`;
+    const path = `${tmpId}/${file.name}`;
+    const { error: upErr } = await supabase.storage.from("expenses").upload(path, file, { upsert: true });
+    setSlipUploading(false);
+
+    if (upErr) {
+      setSlipOcrNote("Upload failed: " + upErr.message);
+      return;
+    }
+
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      setSlipOcrNote("Slip uploaded. OCR works best with image files — please fill in the fields manually.");
+      return;
+    }
+
+    const publicUrl = supabase.storage.from("expenses").getPublicUrl(path).data.publicUrl;
+    setSlipOcring(true);
+    setSlipOcrNote("Scanning slip with AI…");
+
+    try {
+      const resp = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_url: publicUrl }),
+      });
+      const data = await resp.json();
+
+      if (data._note || !resp.ok) {
+        setSlipOcrNote(data._note ?? data.error ?? "OCR returned no data.");
+        setSlipOcring(false);
+        return;
+      }
+
+      let filled = 0;
+      if (data.issue_date && !formDate) { setFormDate(data.issue_date); filled++; }
+      if (data.vendor_name && !formVendor) { setFormVendor(data.vendor_name as string); filled++; }
+      if (data.description && !formDescription) { setFormDescription(data.description as string); filled++; }
+      if (data.total_amount && !formAmount) {
+        setFormAmount(String(data.total_amount));
+        setFormVatIncluded(true);
+        filled++;
+      }
+      const conf = data.confidence ? Math.round((data.confidence as number) * 100) : null;
+      setSlipOcrNote(`AI scan complete — ${filled} field${filled !== 1 ? "s" : ""} filled${conf !== null ? ` (${conf}% confidence)` : ""}. Please verify all values.`);
+    } catch (err) {
+      setSlipOcrNote("OCR error: " + (err instanceof Error ? err.message : "Unknown"));
+    } finally {
+      setSlipOcring(false);
+    }
+  }, [supabase, formDate, formVendor, formDescription, formAmount]);
   // ── Delete expense ─────────────────────────────────────────────────────────
 
   async function handleDelete(id: string) {
@@ -574,18 +627,39 @@ export default function ExpensesPage() {
                   </select>
                 </label>
 
-                {/* Slip upload */}
+                {/* Slip upload — drag-drop with OCR */}
                 <label className="flex flex-col gap-1">
                   <span className={labelClass}>Slip (PDF / image)</span>
-                  <input
-                    type="file"
-                    accept="application/pdf,image/*"
-                    onChange={(e) =>
-                      setFormSlip(e.target.files?.[0] ?? null)
-                    }
-                    className="text-sm text-steel"
-                    style={{ fontFamily: "var(--font-montserrat)" }}
-                  />
+                  <div
+                    onDragOver={e => { e.preventDefault(); setSlipDragging(true); }}
+                    onDragLeave={() => setSlipDragging(false)}
+                    onDrop={e => { e.preventDefault(); setSlipDragging(false); const f = e.dataTransfer.files[0]; if (f) processSlipFile(f); }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="cursor-pointer transition-all"
+                    style={{
+                      border: slipDragging ? "2px dashed #1F2A38" : "2px dashed #EAE4DC",
+                      backgroundColor: slipDragging ? "rgba(31,42,56,0.04)" : "rgba(243,242,238,0.5)",
+                      padding: "0.75rem 1rem",
+                      borderRadius: 0,
+                      textAlign: "center",
+                    }}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/pdf,image/*"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) processSlipFile(f); }}
+                    />
+                    <span className="text-xs text-[#5C6E81]" style={{ fontFamily: "var(--font-montserrat)" }}>
+                      {slipUploading ? "Uploading…" : slipOcring ? "🔍 Scanning…" : formSlip ? `📎 ${formSlip.name}` : "Drop slip here for AI scan, or click to browse"}
+                    </span>
+                  </div>
+                  {slipOcrNote && (
+                    <p className="text-xs mt-0.5" style={{ fontFamily: "var(--font-montserrat)", color: slipOcrNote.toLowerCase().includes("error") || slipOcrNote.toLowerCase().includes("failed") ? "#dc2626" : "#5C6E81" }}>
+                      {slipOcrNote}
+                    </p>
+                  )}
                 </label>
 
                 {/* Notes */}

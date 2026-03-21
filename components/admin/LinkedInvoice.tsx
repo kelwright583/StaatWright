@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { formatZAR } from "@/lib/utils";
 
 interface InvoiceOption {
   id: string;
@@ -21,12 +22,7 @@ interface Props {
 
 const inputCls =
   "w-full border border-[#EAE4DC] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:outline-none focus:border-[#5C6E81] transition-colors";
-
-function formatZAR(amount: number): string {
-  return `R ${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-export default function LinkedInvoice({ creditNoteId, currentLinkedInvoiceId, columnExists }: Props) {
+({ creditNoteId, currentLinkedInvoiceId, columnExists }: Props) {
   const router = useRouter();
   const supabase = createClient();
 

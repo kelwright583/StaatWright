@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const labelClass = "block text-xs text-steel uppercase tracking-wider mb-1";
@@ -53,9 +53,11 @@ const emptyForm: FormState = {
 
 export default function NewPartnerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+  const defaultType = (searchParams.get("type") === "venture" ? "venture" : "client") as "client" | "venture";
 
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [form, setForm] = useState<FormState>({ ...emptyForm, type: defaultType });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

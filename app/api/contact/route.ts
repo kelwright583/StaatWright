@@ -14,6 +14,21 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
+    // Rate limit: max 3 submissions per email address per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase
+      .from("contact_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("email", email)
+      .gte("created_at", oneHourAgo);
+
+    if ((recentCount ?? 0) >= 3) {
+      return NextResponse.json(
+        { error: "Too many submissions. Please wait a while before trying again." },
+        { status: 429 }
+      );
+    }
+
     // Save to DB (anon insert allowed via RLS)
     await supabase.from("contact_submissions").insert({ name, company: company || null, email, message });
 

@@ -4,24 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { InvoicePayment } from "@/lib/types";
+import { formatZAR, formatDate } from "@/lib/utils";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatZAR(amount: number): string {
-  return `R ${amount.toLocaleString("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-ZA", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 const inputCls =

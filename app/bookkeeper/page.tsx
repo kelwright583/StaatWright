@@ -157,14 +157,15 @@ export default function BookkeeperPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="mt-5 w-full px-4 py-2.5 bg-[#1F2A38] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-            style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
-            onClick={() => showToast("Package generation coming soon.")}
-          >
-            Generate Package
-          </button>
+        <button
+          type="button"
+          className="mt-5 w-full px-4 py-2.5 bg-[#1F2A38] text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
+          disabled={downloading === "package"}
+          onClick={() => handleDownload("package", "staatwright-package")}
+        >
+          {downloading === "package" ? "Generating…" : "Generate Package"}
+        </button>
         </div>
 
         {/* Individual reports */}

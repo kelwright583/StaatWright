@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-function formatZAR(amount: number): string {
-  return `R ${amount.toLocaleString("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+import { formatZAR } from "@/lib/utils";
 
 interface Props {
   documentId: string;
@@ -67,8 +61,8 @@ export default function SendInvoiceButton({
       <button
         type="button"
         onClick={() => setShowModal(true)}
-        className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-        style={{ borderRadius: 0, fontFamily: "var(--font-inter)" }}
+        className="w-full px-4 py-2.5 text-white text-sm font-semibold transition-opacity hover:opacity-80"
+        style={{ backgroundColor: "#1F2A38", borderRadius: 0, fontFamily: "var(--font-inter)" }}
       >
         Send Invoice
       </button>
@@ -130,8 +124,8 @@ export default function SendInvoiceButton({
                     type="button"
                     disabled={sending}
                     onClick={handleSend}
-                    className="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    style={{ borderRadius: 0 }}
+                    className="flex-1 px-4 py-2.5 text-white text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                    style={{ backgroundColor: "#1F2A38", borderRadius: 0, fontFamily: "var(--font-inter)" }}
                   >
                     {sending ? "Sending…" : "Confirm & Send"}
                   </button>
@@ -139,8 +133,8 @@ export default function SendInvoiceButton({
                     type="button"
                     disabled={sending}
                     onClick={() => setShowModal(false)}
-                    className="px-4 py-2.5 border border-[#EAE4DC] text-[#5C6E81] text-sm hover:border-[#5C6E81] hover:text-[#1F2A38] transition-colors"
-                    style={{ borderRadius: 0 }}
+                    className="flex-1 px-4 py-2.5 border border-linen text-sm text-steel hover:border-navy hover:text-navy transition-colors"
+                    style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
                   >
                     Cancel
                   </button>

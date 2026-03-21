@@ -4,15 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Document, Expense, Drawing, Partner, OwnerSettings } from "@/lib/types";
-
-function formatZAR(n: number): string {
-  return `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
-}
+import { formatZAR, formatDate } from "@/lib/utils";
 
 // ─── Period helpers ───────────────────────────────────────────────────────────
 

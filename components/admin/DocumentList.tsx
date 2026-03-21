@@ -1,12 +1,6 @@
 import Link from "next/link";
 import type { Document } from "@/lib/types";
-
-function formatZAR(amount: number): string {
-  return `R ${amount.toLocaleString("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+import { formatZAR } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, { dot: string; label: string }> = {
   paid:      { dot: "bg-green-500",  label: "Paid" },

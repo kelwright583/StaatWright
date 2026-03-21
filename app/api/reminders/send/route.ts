@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { Resend } from "resend";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
   const subject = interpolate(template.subject, vars);
   const bodyText = interpolate(template.body, vars);
 
-  // Send via Resend if key is configured
+  // Send via Resend SDK
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
@@ -160,23 +161,16 @@ export async function POST(req: NextRequest) {
   }
 
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "noreply@staatwright.co.za";
+  const resend = new Resend(resendApiKey);
 
-  const resendRes = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: partner.email,
-      subject,
-      text: bodyText,
-    }),
+  const { error: resendError } = await resend.emails.send({
+    from: fromEmail,
+    to: partner.email,
+    subject,
+    text: bodyText,
   });
 
-  if (!resendRes.ok) {
-    const resendError = await resendRes.text();
+  if (resendError) {
     await supabase.from("document_events").insert({
       document_id,
       event_type: "reminder_sent",
@@ -184,12 +178,12 @@ export async function POST(req: NextRequest) {
         reminder_type,
         sent_to: partner.email,
         sent: false,
-        reason: `Resend error: ${resendError}`,
+        reason: `Resend error: ${resendError.message}`,
       },
       created_by: user.id,
     });
     return NextResponse.json(
-      { success: false, reason: `Email send failed: ${resendError}` },
+      { success: false, reason: `Email send failed: ${resendError.message}` },
       { status: 500 }
     );
   }

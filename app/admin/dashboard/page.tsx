@@ -1,11 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import type { Document, DocumentEvent, Expense, Partner, ExpenseInboxItem } from "@/lib/types";
-
-function formatZAR(amount: number): string {
-  return `R ${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { formatZAR } from "@/lib/utils";
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { dot: string; label: string }> = {
@@ -138,9 +136,9 @@ export default async function DashboardPage() {
   // Recent events
   const { data: recentEvents } = await supabase
     .from("document_events")
-    .select("*, document:documents(number, type)")
+    .select("*, document:documents(number, type, partner:partners(company_name))")
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(20);
 
   // Calculations
   const outstandingTotal = (outstandingInvoices ?? []).reduce(
@@ -251,12 +249,12 @@ export default async function DashboardPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-3">
-                            <a
+                            <Link
                               href={`/admin/invoices/${doc.id}`}
                               className="text-xs text-steel hover:text-navy underline transition-colors"
                             >
                               View →
-                            </a>
+                            </Link>
                             <form action={markPaidAction}>
                               <input type="hidden" name="id" value={doc.id} />
                               <button
@@ -338,13 +336,13 @@ export default async function DashboardPage() {
               )}
               {(pendingInboxCount ?? 0) > 0 && (
                 <div className="border-t border-linen px-4 py-3">
-                  <a
+                  <Link
                     href="/admin/expenses"
                     className="text-xs text-steel hover:text-navy underline transition-colors"
                     style={{ fontFamily: "var(--font-montserrat)" }}
                   >
                     Review All →
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
@@ -373,25 +371,25 @@ export default async function DashboardPage() {
                       >
                         {v.company_name}
                       </span>
-                      <a
+                      <Link
                         href={`/admin/partners/${v.id}`}
                         className="text-xs text-steel hover:text-navy underline transition-colors"
                         style={{ fontFamily: "var(--font-montserrat)" }}
                       >
                         View →
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
               )}
               <div className="border-t border-linen px-4 py-3">
-                <a
-                  href="/admin/ventures"
+                <Link
+                  href="/admin/partners?type=venture"
                   className="text-xs text-steel hover:text-navy underline transition-colors"
                   style={{ fontFamily: "var(--font-montserrat)" }}
                 >
                   View all →
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -412,31 +410,44 @@ export default async function DashboardPage() {
               </p>
             ) : (
               <ul className="divide-y divide-linen">
-                {(recentEvents ?? []).map((event: DocumentEvent & { document?: { number: string; type: string } }) => (
-                  <li key={event.id} className="px-4 py-3 flex flex-col gap-0.5">
-                    <span
-                      className="text-xs text-steel"
-                      style={{ fontFamily: "var(--font-montserrat)" }}
-                    >
-                      {new Date(event.created_at).toLocaleDateString("en-ZA", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    <span
-                      className="text-sm text-ink"
-                      style={{ fontFamily: "var(--font-montserrat)" }}
-                    >
-                      {event.document?.number
-                        ? `${event.document.type} ${event.document.number} — `
-                        : ""}
-                      <span className="capitalize">{event.event_type.replace(/_/g, " ")}</span>
-                    </span>
-                  </li>
-                ))}
+                {(recentEvents ?? []).map((event: DocumentEvent & { document?: { number: string; type: string; partner?: { company_name: string } } }) => {
+                  const docRef = event.document?.number
+                    ? `${event.document.type === "invoice" ? "Invoice" : event.document.type === "quote" ? "Quote" : "Credit Note"} ${event.document.number}`
+                    : "Document";
+                  const partnerLabel = event.document?.partner?.company_name
+                    ? ` · ${event.document.partner.company_name}`
+                    : "";
+                  const descriptions: Record<string, string> = {
+                    sent:             `${docRef} sent${partnerLabel}`,
+                    paid:             `${docRef} marked as paid${partnerLabel}`,
+                    payment_recorded: `Payment recorded on ${docRef}${partnerLabel}`,
+                    status_changed:   `${docRef} status updated${partnerLabel}`,
+                    created:          `${docRef} created${partnerLabel}`,
+                  };
+                  const description = descriptions[event.event_type] ?? `${docRef} — ${event.event_type.replace(/_/g, " ")}`;
+                  return (
+                    <li key={event.id} className="px-4 py-3 flex flex-col gap-0.5">
+                      <span
+                        className="text-xs text-steel"
+                        style={{ fontFamily: "var(--font-montserrat)" }}
+                      >
+                        {new Date(event.created_at).toLocaleDateString("en-ZA", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <span
+                        className="text-sm text-ink"
+                        style={{ fontFamily: "var(--font-montserrat)" }}
+                      >
+                        {description}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

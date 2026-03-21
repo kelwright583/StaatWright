@@ -49,6 +49,7 @@ export interface Partner {
   address: string | null;
   website: string | null;
   vat_number: string | null;
+  reg_number: string | null;
   relationship_type: string | null;
   status: string | null;
   founding_date: string | null;
@@ -59,6 +60,11 @@ export interface Partner {
   venture_ownership: VentureOwnership | null;
   external_billing: ExternalBillingRow[] | null;
   spec: PartnerSpec | null;
+  bank_name: string | null;
+  bank_account_holder: string | null;
+  bank_account_number: string | null;
+  bank_branch_code: string | null;
+  bank_account_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -132,6 +138,8 @@ export interface Document {
   number: string;
   partner_id: string | null;
   partner?: Partner;
+  venture_id: string | null;
+  venture?: Partner;
   status: DocumentStatus;
   issue_date: string | null;
   due_date: string | null;
@@ -372,6 +380,58 @@ export interface InvoicePayment {
   reference: string | null;
   notes: string | null;
   created_at: string;
+}
+
+// ─── Service Providers ───────────────────────────────────────────────────────
+
+export interface ServiceProvider {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  website: string | null;
+  vat_number: string | null;
+  reg_number: string | null;
+  bank_name: string | null;
+  bank_account_holder: string | null;
+  bank_account_number: string | null;
+  bank_branch_code: string | null;
+  bank_account_type: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Bills ────────────────────────────────────────────────────────────────────
+
+export type BillStatus = "draft" | "received" | "paid" | "overdue";
+
+export interface Bill {
+  id: string;
+  number: string;
+  venture_id: string | null;
+  venture?: { company_name: string } | null;
+  service_provider_id: string | null;
+  service_provider?: ServiceProvider | null;
+  status: BillStatus;
+  issue_date: string | null;
+  due_date: string | null;
+  reference: string | null;
+  description: string | null;
+  amount_excl_vat: number | null;
+  vat_amount: number | null;
+  total_amount: number | null;
+  currency: string | null;
+  exchange_rate: number | null;
+  zar_equivalent: number | null;
+  invoice_path: string | null;
+  ocr_raw: Record<string, unknown> | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Drawings ────────────────────────────────────────────────────────────────

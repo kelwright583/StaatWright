@@ -2,8 +2,17 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import * as Tabs from "@radix-ui/react-tabs";
 import { createClient } from "@/lib/supabase/client";
-import type { Document, Brand, PartnerNote, PartnerSpec, BrandColour, BrandLogo, OwnerSettings } from "@/lib/types";
+import {
+  BrandIdentityForm,
+  BrandColoursEditor,
+  BrandTypographyEditor,
+  BrandLogosEditor,
+  BrandCardFields,
+} from "@/components/admin/BrandEditor";
+import BrandCard from "@/components/shared/BrandCard";
+import type { Document, Brand, BrandCardData, PartnerNote, PartnerSpec, BrandColour, BrandLogo, OwnerSettings } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Local types
@@ -311,6 +320,14 @@ export default function PartnerDetailPage() {
   const [savingEquity, setSavingEquity] = useState(false);
   const [equityError, setEquityError] = useState<string | null>(null);
 
+  // Billing form (ventures)
+  const [billingForm, setBillingForm] = useState({
+    reg_number: "", bank_name: "", bank_account_holder: "",
+    bank_account_number: "", bank_branch_code: "", bank_account_type: "",
+  });
+  const [savingBilling, setSavingBilling] = useState(false);
+  const [billingMsg, setBillingMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
   // ---------------------------------------------------------------------------
   // Data loading
   // ---------------------------------------------------------------------------
@@ -353,6 +370,14 @@ export default function PartnerDetailPage() {
       });
       setOwnershipData(p.venture_ownership ?? {});
       setSpecForm(p.spec ?? {});
+      setBillingForm({
+        reg_number: p.reg_number ?? "",
+        bank_name: p.bank_name ?? "",
+        bank_account_holder: p.bank_account_holder ?? "",
+        bank_account_number: p.bank_account_number ?? "",
+        bank_branch_code: p.bank_branch_code ?? "",
+        bank_account_type: p.bank_account_type ?? "",
+      });
     }
 
     const allInvoices = (invoiceData ?? []) as Document[];
@@ -437,6 +462,29 @@ export default function PartnerDetailPage() {
     setOverviewMsg({ type: "success", text: "Saved successfully." });
     await loadData();
     setTimeout(() => setOverviewMsg(null), 3000);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Handlers: Billing
+  // ---------------------------------------------------------------------------
+
+  async function handleSaveBilling(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingBilling(true);
+    setBillingMsg(null);
+    const { error } = await supabase.from("partners").update({
+      reg_number: billingForm.reg_number.trim() || null,
+      bank_name: billingForm.bank_name.trim() || null,
+      bank_account_holder: billingForm.bank_account_holder.trim() || null,
+      bank_account_number: billingForm.bank_account_number.trim() || null,
+      bank_branch_code: billingForm.bank_branch_code.trim() || null,
+      bank_account_type: billingForm.bank_account_type.trim() || null,
+    }).eq("id", id);
+    setSavingBilling(false);
+    if (error) { setBillingMsg({ type: "error", text: error.message }); return; }
+    setBillingMsg({ type: "success", text: "Billing details saved." });
+    await loadData();
+    setTimeout(() => setBillingMsg(null), 3000);
   }
 
   // ---------------------------------------------------------------------------
@@ -593,6 +641,21 @@ export default function PartnerDetailPage() {
     setCreatingBrand(false);
   }
 
+  async function loadBrandJoins() {
+    if (!overviewForm.brand_id) return;
+    const [{ data: cols }, { data: logs }] = await Promise.all([
+      supabase.from("brand_colours").select("*").eq("brand_id", overviewForm.brand_id),
+      supabase.from("brand_logos").select("*").eq("brand_id", overviewForm.brand_id),
+    ]);
+    setLinkedBrandColours((cols ?? []) as BrandColour[]);
+    setLinkedBrandLogos((logs ?? []) as BrandLogo[]);
+  }
+
+  function handleBrandSaved(updatedBrand: Brand) {
+    setLinkedBrand(updatedBrand);
+    loadBrandJoins();
+  }
+
   // ---------------------------------------------------------------------------
   // Loading / not found
   // ---------------------------------------------------------------------------
@@ -631,7 +694,9 @@ export default function PartnerDetailPage() {
 
   const clientTabs = [
     { value: "overview",  label: "Overview" },
+    { value: "brand",     label: "Brand & Identity" },
     { value: "projects",  label: "Projects" },
+    { value: "spec",      label: "Spec & Brief" },
     { value: "invoices",  label: `Invoices (${invoices.length})` },
     { value: "quotes",    label: `Quotes (${quotes.length})` },
     { value: "files",     label: "Files" },
@@ -642,6 +707,7 @@ export default function PartnerDetailPage() {
   const ventureTabs = [
     { value: "overview",  label: "Overview" },
     { value: "brand",     label: "Brand & Identity" },
+    { value: "billing",   label: "Billing" },
     { value: "spec",      label: "Spec & Brief" },
     { value: "projects",  label: "Projects" },
     { value: "invoices",  label: `Invoices (${invoices.length})` },
@@ -710,13 +776,48 @@ export default function PartnerDetailPage() {
           </div>
 
           {isClient && (
-            <Link
-              href={`/admin/clients/${id}/statement`}
-              className="px-4 py-1.5 border border-linen text-xs text-steel hover:border-navy hover:text-navy transition-colors"
-              style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
-            >
-              Statement
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/invoices/new?partner_id=${id}`}
+                className="px-3 py-1.5 text-white text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
+              >
+                + Invoice
+              </Link>
+              <Link
+                href={`/admin/quotes/new?partner_id=${id}`}
+                className="px-3 py-1.5 text-white text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
+              >
+                + Quote
+              </Link>
+              <Link
+                href={`/admin/partners/${id}/statement`}
+                className="px-4 py-1.5 border border-linen text-xs text-steel hover:border-navy hover:text-navy transition-colors"
+                style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+              >
+                Statement
+              </Link>
+            </div>
+          )}
+          {isVenture && (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/invoices/new?partner_id=${id}`}
+                className="px-3 py-1.5 text-white text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
+              >
+                + Invoice
+              </Link>
+              <button
+                type="button"
+                onClick={() => setActiveTab("equity")}
+                className="px-3 py-1.5 border border-linen text-xs text-steel hover:border-navy hover:text-navy transition-colors"
+                style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+              >
+                + Equity Entry
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -985,7 +1086,7 @@ export default function PartnerDetailPage() {
               View the full client statement with all invoices, payments, and balances.
             </p>
             <Link
-              href={`/admin/clients/${id}/statement`}
+              href={`/admin/partners/${id}/statement`}
               className={btnPrimary}
               style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
             >
@@ -1064,14 +1165,14 @@ export default function PartnerDetailPage() {
         )}
 
         {/* ================================================================ */}
-        {/* BRAND & IDENTITY TAB (ventures)                                  */}
+        {/* BRAND & IDENTITY TAB (clients + ventures)                        */}
         {/* ================================================================ */}
-        {activeTab === "brand" && isVenture && (
-          <div>
+        {activeTab === "brand" && (
+          <div className="space-y-6">
             {!overviewForm.brand_id ? (
               <div className={`${cardClass} text-center`} style={{ borderRadius: 0 }}>
                 <p className="text-steel text-sm mb-4" style={{ fontFamily: "var(--font-montserrat)" }}>
-                  No brand identity linked to this venture yet.
+                  No brand identity linked to this {partner.type} yet.
                 </p>
                 <button
                   type="button"
@@ -1084,114 +1185,62 @@ export default function PartnerDetailPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Brand header */}
-                <div className="bg-white border border-linen p-6 flex items-center justify-between" style={{ borderRadius: 0 }}>
-                  <div>
-                    <h3 className="text-navy font-bold text-base" style={{ fontFamily: "var(--font-inter)" }}>
-                      {linkedBrand?.name ?? "Brand"}
-                    </h3>
-                    {linkedBrand?.tagline && (
-                      <p className="text-xs text-steel mt-1" style={{ fontFamily: "var(--font-montserrat)" }}>
-                        {linkedBrand.tagline}
-                      </p>
-                    )}
-                    {linkedBrand?.status && (
-                      <span
-                        className="inline-block mt-2 px-2 py-0.5 text-xs font-medium uppercase tracking-wider"
-                        style={{
-                          backgroundColor: linkedBrand.status === "active" ? "#22c55e18" : linkedBrand.status === "in_development" ? "#3b82f618" : "#5C6E8118",
-                          color: linkedBrand.status === "active" ? "#22c55e" : linkedBrand.status === "in_development" ? "#3b82f6" : "#5C6E81",
-                          borderRadius: 0,
-                          fontFamily: "var(--font-montserrat)",
-                        }}
-                      >
-                        {linkedBrand.status.replace("_", " ")}
-                      </span>
+              <>
+                {/* Public Site Card Preview */}
+                <div className="bg-white border border-linen p-6" style={{ borderRadius: 0 }}>
+                  <h3 className="text-navy font-bold text-xs uppercase tracking-wider mb-4"
+                      style={{ fontFamily: "var(--font-inter)" }}>
+                    Public Site Preview
+                  </h3>
+                  <div className="max-w-sm">
+                    {linkedBrand && (
+                      <BrandCard brand={{
+                        ...linkedBrand,
+                        brand_colours: linkedBrandColours ?? [],
+                        brand_logos: linkedBrandLogos ?? [],
+                      } as BrandCardData} />
                     )}
                   </div>
-                  <Link
-                    href={`/admin/brands/${overviewForm.brand_id}`}
-                    className="px-4 py-2 border border-linen text-xs text-steel hover:border-navy hover:text-navy transition-colors"
-                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
-                  >
-                    Edit Brand →
-                  </Link>
+                  <p className="text-xs text-steel mt-3" style={{ fontFamily: "var(--font-montserrat)" }}>
+                    This is how the card appears on staatwright.co.za
+                  </p>
                 </div>
 
-                {/* Colours */}
-                {linkedBrandColours.length > 0 && (
-                  <div className="bg-white border border-linen p-6" style={{ borderRadius: 0 }}>
-                    <h4 className="text-navy font-bold text-xs uppercase tracking-wider mb-3" style={{ fontFamily: "var(--font-inter)" }}>
-                      Colours
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
-                      {linkedBrandColours.map((c) => (
-                        <div key={c.id} className="flex flex-col items-center gap-1.5">
-                          <div
-                            className="w-10 h-10 border border-linen"
-                            style={{ backgroundColor: c.hex ?? "#ccc", borderRadius: 0 }}
-                          />
-                          <span className="text-xs text-steel" style={{ fontFamily: "var(--font-montserrat)" }}>
-                            {c.name ?? c.hex ?? "—"}
-                          </span>
-                          {c.role && (
-                            <span className="text-xs text-steel/60" style={{ fontFamily: "var(--font-montserrat)" }}>
-                              {c.role}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Radix Tabs for brand sub-sections */}
+                <Tabs.Root defaultValue="identity">
+                  <Tabs.List className="flex border-b border-linen mb-4">
+                    <Tabs.Trigger value="identity" className="px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-navy data-[state=active]:text-navy data-[state=inactive]:border-transparent data-[state=inactive]:text-steel hover:text-navy" style={{ fontFamily: "var(--font-montserrat)" }}>Identity</Tabs.Trigger>
+                    <Tabs.Trigger value="card" className="px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-navy data-[state=active]:text-navy data-[state=inactive]:border-transparent data-[state=inactive]:text-steel hover:text-navy" style={{ fontFamily: "var(--font-montserrat)" }}>Card Appearance</Tabs.Trigger>
+                    <Tabs.Trigger value="colours" className="px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-navy data-[state=active]:text-navy data-[state=inactive]:border-transparent data-[state=inactive]:text-steel hover:text-navy" style={{ fontFamily: "var(--font-montserrat)" }}>Colours</Tabs.Trigger>
+                    <Tabs.Trigger value="typography" className="px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-navy data-[state=active]:text-navy data-[state=inactive]:border-transparent data-[state=inactive]:text-steel hover:text-navy" style={{ fontFamily: "var(--font-montserrat)" }}>Typography</Tabs.Trigger>
+                    <Tabs.Trigger value="logos" className="px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-navy data-[state=active]:text-navy data-[state=inactive]:border-transparent data-[state=inactive]:text-steel hover:text-navy" style={{ fontFamily: "var(--font-montserrat)" }}>Logos</Tabs.Trigger>
+                  </Tabs.List>
 
-                {/* Logos */}
-                {linkedBrandLogos.length > 0 && (
-                  <div className="bg-white border border-linen p-6" style={{ borderRadius: 0 }}>
-                    <h4 className="text-navy font-bold text-xs uppercase tracking-wider mb-3" style={{ fontFamily: "var(--font-inter)" }}>
-                      Logos
-                    </h4>
-                    <div className="flex flex-wrap gap-4">
-                      {linkedBrandLogos.map((logo) => (
-                        <div key={logo.id} className="flex flex-col gap-1.5 items-center">
-                          <div className="w-20 h-12 border border-linen flex items-center justify-center bg-linen/30" style={{ borderRadius: 0 }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/storage/v1/object/public/brand-assets/${logo.storage_path}`}
-                              alt={logo.variant}
-                              className="max-w-full max-h-full object-contain"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                            />
-                          </div>
-                          <span className="text-xs text-steel" style={{ fontFamily: "var(--font-montserrat)" }}>
-                            {logo.variant}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {linkedBrandColours.length === 0 && linkedBrandLogos.length === 0 && (
-                  <div className="bg-white border border-linen p-6" style={{ borderRadius: 0 }}>
-                    <p className="text-steel text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>
-                      No colours or logos uploaded yet.{" "}
-                      <Link href={`/admin/brands/${overviewForm.brand_id}`} className="underline hover:text-navy transition-colors">
-                        Edit Brand →
-                      </Link>
-                    </p>
-                  </div>
-                )}
-              </div>
+                  <Tabs.Content value="identity">
+                    <BrandIdentityForm brand={linkedBrand!} onSaved={handleBrandSaved} />
+                  </Tabs.Content>
+                  <Tabs.Content value="card">
+                    <BrandCardFields brand={linkedBrand!} onSaved={handleBrandSaved} />
+                  </Tabs.Content>
+                  <Tabs.Content value="colours">
+                    <BrandColoursEditor brandId={overviewForm.brand_id} />
+                  </Tabs.Content>
+                  <Tabs.Content value="typography">
+                    <BrandTypographyEditor brandId={overviewForm.brand_id} />
+                  </Tabs.Content>
+                  <Tabs.Content value="logos">
+                    <BrandLogosEditor brandId={overviewForm.brand_id} />
+                  </Tabs.Content>
+                </Tabs.Root>
+              </>
             )}
           </div>
         )}
 
         {/* ================================================================ */}
-        {/* SPEC & BRIEF TAB (ventures)                                      */}
+        {/* SPEC & BRIEF TAB (clients + ventures)                            */}
         {/* ================================================================ */}
-        {activeTab === "spec" && isVenture && (
+        {activeTab === "spec" && (
           <form onSubmit={handleSaveSpec}>
             <div className="space-y-6">
               {/* Project Brief */}
@@ -1639,6 +1688,121 @@ export default function PartnerDetailPage() {
                   style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
                 >
                   {savingSpec ? "Saving…" : "Save Spec & Brief"}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* ================================================================ */}
+        {/* BILLING TAB (ventures)                                           */}
+        {/* ================================================================ */}
+        {activeTab === "billing" && isVenture && (
+          <form onSubmit={handleSaveBilling}>
+            <div className={cardClass} style={{ borderRadius: 0 }}>
+              <h3 className="text-navy font-bold text-xs uppercase tracking-wider mb-6" style={{ fontFamily: "var(--font-inter)" }}>
+                Billing &amp; Banking Details
+              </h3>
+              <p className="text-xs text-steel mb-6" style={{ fontFamily: "var(--font-montserrat)" }}>
+                These details appear on all invoices and documents issued from this venture.
+                Leave a field blank to fall back to the company-wide settings.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Registration Number</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+                    value={billingForm.reg_number}
+                    onChange={(e) => setBillingForm((p) => ({ ...p, reg_number: e.target.value }))}
+                    placeholder="e.g. 2024/012345/07"
+                  />
+                </div>
+
+                <div />
+
+                <div>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Bank Name</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+                    value={billingForm.bank_name}
+                    onChange={(e) => setBillingForm((p) => ({ ...p, bank_name: e.target.value }))}
+                    placeholder="e.g. First National Bank"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Account Holder</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+                    value={billingForm.bank_account_holder}
+                    onChange={(e) => setBillingForm((p) => ({ ...p, bank_account_holder: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Account Number</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+                    value={billingForm.bank_account_number}
+                    onChange={(e) => setBillingForm((p) => ({ ...p, bank_account_number: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Branch Code</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+                    value={billingForm.bank_branch_code}
+                    onChange={(e) => setBillingForm((p) => ({ ...p, bank_branch_code: e.target.value }))}
+                    placeholder="e.g. 250655"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Account Type</label>
+                  <select
+                    className={inputClass}
+                    style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+                    value={billingForm.bank_account_type}
+                    onChange={(e) => setBillingForm((p) => ({ ...p, bank_account_type: e.target.value }))}
+                  >
+                    <option value="">— Select type —</option>
+                    <option value="Current">Current</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Savings">Savings</option>
+                    <option value="Business">Business</option>
+                  </select>
+                </div>
+              </div>
+
+              {billingMsg && (
+                <div
+                  className={`mt-4 text-sm px-4 py-3 border ${billingMsg.type === "error" ? "border-red-300 text-red-700 bg-red-50" : "border-green-300 text-green-700 bg-green-50"}`}
+                  style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}
+                >
+                  {billingMsg.text}
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingBilling}
+                  className="px-6 py-2.5 bg-navy text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  style={{ fontFamily: "var(--font-inter)", borderRadius: 0 }}
+                >
+                  {savingBilling ? "Saving…" : "Save Billing Details"}
                 </button>
               </div>
             </div>
