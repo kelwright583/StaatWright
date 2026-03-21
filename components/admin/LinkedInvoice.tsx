@@ -22,7 +22,7 @@ interface Props {
 
 const inputCls =
   "w-full border border-[#EAE4DC] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:outline-none focus:border-[#5C6E81] transition-colors";
-({ creditNoteId, currentLinkedInvoiceId, columnExists }: Props) {
+export default function LinkedInvoice({ creditNoteId, currentLinkedInvoiceId, columnExists }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
