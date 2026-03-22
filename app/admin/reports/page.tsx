@@ -631,8 +631,8 @@ function PerPartnerTab() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from("partners").select("id, company_name").order("company_name").then(({ data }: { data: Partner[] | null }) => {
-      setPartners((data ?? []) as Partner[]);
+    supabase.from("partners").select("id, company_name").order("company_name").then((result) => {
+      setPartners((result.data ?? []) as Partner[]);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

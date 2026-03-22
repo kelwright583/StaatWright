@@ -88,8 +88,8 @@ export default function RetainersPage() {
   // Load projects when partner changes
   useEffect(() => {
     if (!form.partner_id) { setProjects([]); return; }
-    supabase.from("projects").select("id, name").eq("partner_id", form.partner_id).then(({ data }: { data: Project[] | null }) => {
-      setProjects((data ?? []) as Project[]);
+    supabase.from("projects").select("id, name").eq("partner_id", form.partner_id).then((result) => {
+      setProjects((result.data ?? []) as Project[]);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.partner_id]);

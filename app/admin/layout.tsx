@@ -20,6 +20,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setAuthed(!!session?.user);
       setReady(true);
+
+      if (session) {
+        fetch("/api/auth/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }),
+        }).catch(() => {});
+      } else if (_event === "SIGNED_OUT") {
+        fetch("/api/auth/sync", { method: "DELETE" }).catch(() => {});
+      }
     });
 
     return () => {
