@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,28 +13,28 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value);
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
   );
 
-  // Refresh the session — keeps the JWT alive in cookies
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+  // Verify the session server-side — getUser() validates the JWT with Supabase auth server
+  // getSession() must NOT be used here; it doesn't validate the token and returns null in production
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
   // Protect admin routes (except the login page itself)
-  const isAdminPath = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
+  const isAdminPath =
+    pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
   // Protect bookkeeper routes (except the login page itself)
-  const isBookkeeperPath = pathname.startsWith("/bookkeeper") && !pathname.startsWith("/bookkeeper/login");
+  const isBookkeeperPath =
+    pathname.startsWith("/bookkeeper") &&
+    !pathname.startsWith("/bookkeeper/login");
 
   if (!user) {
     if (isAdminPath) {
