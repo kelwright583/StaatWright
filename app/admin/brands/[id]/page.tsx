@@ -28,6 +28,12 @@ export default function BrandWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  async function reloadColours() {
+    if (!id) return;
+    const { data } = await supabase.from("brand_colours").select("*").eq("brand_id", id);
+    setBrandColours((data as BrandColour[]) ?? []);
+  }
+
   useEffect(() => {
     if (!id) return;
     async function load() {
@@ -129,6 +135,7 @@ export default function BrandWorkspacePage() {
               brand={brand}
               onSaved={setBrand}
               hasPrimaryColour={brandColours.some((c) => c.role === "primary")}
+              onColoursChanged={reloadColours}
             />
           </Tabs.Content>
 

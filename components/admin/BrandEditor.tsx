@@ -68,9 +68,10 @@ interface BrandIdentityProps {
   brand: Brand;
   onSaved: (b: Brand) => void;
   hasPrimaryColour?: boolean;
+  onColoursChanged?: () => void;
 }
 
-export function BrandIdentityForm({ brand, onSaved, hasPrimaryColour = false }: BrandIdentityProps) {
+export function BrandIdentityForm({ brand, onSaved, hasPrimaryColour = false, onColoursChanged }: BrandIdentityProps) {
   const supabase = createClient();
   const [form, setForm] = useState<Brand>(brand);
   const [saving, setSaving] = useState(false);
@@ -154,6 +155,7 @@ export function BrandIdentityForm({ brand, onSaved, hasPrimaryColour = false }: 
             role: c.role || "accent",
           });
         }
+        onColoursChanged?.();
       }
 
       const updates: Record<string, string> = {};
@@ -982,7 +984,8 @@ export function BrandCardFields({ brand, onSaved }: { brand: Brand; onSaved: (b:
       setToast({ type: "error", message: upErr.message });
       return;
     }
-    setForm((p) => ({ ...p, hero_image_path: storagePath }));
+    const { data: heroUrlData } = supabase.storage.from("brand-assets").getPublicUrl(storagePath);
+    setForm((p) => ({ ...p, hero_image_path: heroUrlData.publicUrl }));
     if (heroInputRef.current) heroInputRef.current.value = "";
     setToast({ type: "success", message: "Hero image uploaded. Save to apply." });
     setTimeout(() => setToast(null), 3000);
