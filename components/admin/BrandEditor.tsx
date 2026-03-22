@@ -64,16 +64,112 @@ function Field({
 
 // ─── BrandIdentityForm ──────────────────────────────────────────────────────
 
-export function BrandIdentityForm({ brand, onSaved }: { brand: Brand; onSaved: (b: Brand) => void }) {
+interface BrandIdentityProps {
+  brand: Brand;
+  onSaved: (b: Brand) => void;
+  hasPrimaryColour?: boolean;
+}
+
+export function BrandIdentityForm({ brand, onSaved, hasPrimaryColour = false }: BrandIdentityProps) {
   const supabase = createClient();
   const [form, setForm] = useState<Brand>(brand);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  const boardInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setForm(brand); }, [brand]);
 
   function set(key: keyof Brand, val: string | boolean | number) {
     setForm((prev) => ({ ...prev, [key]: val }));
+  }
+
+  const missingFields: string[] = [];
+  if (!form.name?.trim()) missingFields.push("Brand Name");
+  if (!form.public_one_liner?.trim()) missingFields.push("Public One-Liner");
+  if (!brand.hero_image_path) missingFields.push("Hero Image (Card Appearance tab)");
+  if (!brand.card_bg_color) missingFields.push("Card Background Colour (Card Appearance tab)");
+  if (!hasPrimaryColour) missingFields.push("Primary Colour (Colours tab)");
+  const canPublish = missingFields.length === 0;
+
+  useEffect(() => {
+    if (!canPublish && form.show_on_public_site) {
+      setForm((prev) => ({ ...prev, show_on_public_site: false }));
+    }
+  }, [canPublish, form.show_on_public_site]);
+
+  async function handleBoardUpload() {
+    const file = boardInputRef.current?.files?.[0];
+    if (!file) return;
+
+    const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!ALLOWED.includes(file.type)) {
+      setToast({ type: "error", message: "Only image files are allowed (JPG, PNG, WebP, GIF)." });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setToast({ type: "error", message: "Brand board image must be under 10 MB." });
+      return;
+    }
+
+    setAnalysing(true);
+    setToast(null);
+
+    const ext = file.name.split(".").pop();
+    const storagePath = `${brand.id}/brand-board/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("brand-assets").upload(storagePath, file);
+    if (upErr) {
+      setToast({ type: "error", message: upErr.message });
+      setAnalysing(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(storagePath);
+
+    try {
+      const res = await fetch("/api/brand-board", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_url: urlData.publicUrl }),
+      });
+      const result = await res.json();
+
+      if (!res.ok) {
+        setToast({ type: "error", message: result.error || "Brand board analysis failed." });
+        setAnalysing(false);
+        return;
+      }
+
+      if (result.name && !form.name?.trim()) set("name", result.name);
+      if (result.tagline) set("tagline", result.tagline);
+      if (result.description) set("description", result.description);
+      if (result.one_liner) set("public_one_liner", result.one_liner);
+
+      if (result.colours?.length) {
+        for (const c of result.colours) {
+          await supabase.from("brand_colours").insert({
+            brand_id: brand.id,
+            name: c.name || "Extracted",
+            hex: c.hex,
+            role: c.role || "accent",
+          });
+        }
+      }
+
+      const updates: Record<string, string> = {};
+      if (result.heading_font) updates.heading_font = result.heading_font;
+      if (result.body_font) updates.body_font = result.body_font;
+      if (Object.keys(updates).length) {
+        await supabase.from("brands").update(updates).eq("id", brand.id);
+      }
+
+      setToast({ type: "success", message: "Brand board analysed! Review the fields below and save." });
+    } catch {
+      setToast({ type: "error", message: "Failed to analyse brand board." });
+    }
+
+    setAnalysing(false);
+    if (boardInputRef.current) boardInputRef.current.value = "";
   }
 
   async function handleSave() {
@@ -87,7 +183,7 @@ export function BrandIdentityForm({ brand, onSaved }: { brand: Brand; onSaved: (
         description: form.description,
         status: form.status,
         live_url: form.live_url,
-        show_on_public_site: form.show_on_public_site,
+        show_on_public_site: canPublish ? form.show_on_public_site : false,
         public_one_liner: form.public_one_liner,
         public_sort_order: form.public_sort_order,
       })
@@ -98,95 +194,148 @@ export function BrandIdentityForm({ brand, onSaved }: { brand: Brand; onSaved: (
       setToast({ type: "error", message: error.message || "Save failed." });
     } else {
       setToast({ type: "success", message: "Saved!" });
-      onSaved(form);
+      onSaved({ ...form, show_on_public_site: canPublish ? form.show_on_public_site : false });
       setTimeout(() => setToast(null), 3000);
     }
   }
 
   return (
-    <div className="bg-white border border-linen p-8 max-w-2xl" style={{ borderRadius: 0 }}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <Field label="Brand Name" value={form.name} onChange={(v) => set("name", v)} />
-        <Field label="Tagline" value={form.tagline} onChange={(v) => set("tagline", v)} />
-        <div className="sm:col-span-2 flex flex-col">
-          <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Description</label>
-          <textarea
-            rows={4}
-            value={form.description ?? ""}
-            onChange={(e) => set("description", e.target.value)}
-            className="border-b border-linen focus:border-navy outline-none bg-transparent py-2 w-full text-ink text-sm resize-y"
+    <div className="max-w-2xl space-y-6">
+      {/* Brand Board Upload */}
+      <div className="bg-white border border-dashed border-linen p-6" style={{ borderRadius: 0 }}>
+        <h4
+          className="text-navy font-bold text-sm uppercase tracking-wider mb-2"
+          style={{ fontFamily: "var(--font-inter)" }}
+        >
+          Upload Brand Board
+        </h4>
+        <p
+          className="text-xs text-steel mb-4"
+          style={{ fontFamily: "var(--font-montserrat)" }}
+        >
+          Have a brand board? Upload it and AI will extract colours, fonts, and brand details to
+          pre-fill the form. You can review and adjust everything before saving.
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            type="file"
+            ref={boardInputRef}
+            accept="image/*"
+            onChange={handleBoardUpload}
+            disabled={analysing}
+            className="text-sm text-ink py-2 border-b border-linen focus:border-navy outline-none bg-transparent flex-1"
             style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
           />
-        </div>
-        <div className="flex flex-col">
-          <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Status</label>
-          <select
-            value={form.status}
-            onChange={(e) => set("status", e.target.value as BrandStatus)}
-            className={inputClass}
-            style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
-          >
-            <option value="in_development">In Development</option>
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-          </select>
-        </div>
-        <Field label="Live URL" value={form.live_url} onChange={(v) => set("live_url", v)} type="url" placeholder="https://" />
-        <Field label="Public One-Liner" value={form.public_one_liner} onChange={(v) => set("public_one_liner", v)} />
-        <Field label="Public Sort Order" value={form.public_sort_order} onChange={(v) => set("public_sort_order", Number(v))} type="number" />
-        <div
-          className={`sm:col-span-2 flex items-center justify-between gap-4 px-5 py-4 border ${
-            form.show_on_public_site ? "border-green-300 bg-green-50" : "border-linen bg-white"
-          }`}
-          style={{ borderRadius: 0 }}
-        >
-          <div className="flex flex-col gap-0.5">
+          {analysing && (
             <span
-              className="text-sm font-semibold text-ink"
+              className="text-xs text-navy font-medium animate-pulse"
               style={{ fontFamily: "var(--font-montserrat)" }}
             >
-              Show on public site
+              Analysing brand board…
             </span>
-            <span
-              className="text-xs text-steel"
-              style={{ fontFamily: "var(--font-montserrat)" }}
-            >
-              When ticked, this brand appears in the Partners &amp; Builds section of the
-              public website. All card visuals (image, colours, fonts) must be configured
-              in the other tabs before publishing.
-            </span>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer shrink-0">
-            <input
-              type="checkbox"
-              id="identity_show_public"
-              checked={form.show_on_public_site}
-              onChange={(e) => set("show_on_public_site", e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-linen peer-checked:bg-navy rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
-          </label>
+          )}
         </div>
       </div>
 
-      <div className="mt-8">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={handleSave}
-          className="w-full py-3 text-white text-sm font-semibold transition-opacity disabled:opacity-60"
-          style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
-        >
-          {saving ? "Saving…" : "Save Changes"}
-        </button>
-        {toast && (
-          <p
-            className={`mt-2 text-sm text-center ${toast.type === "success" ? "text-green-600" : "text-red-500"}`}
-            style={{ fontFamily: "var(--font-montserrat)" }}
+      {/* Identity Fields */}
+      <div className="bg-white border border-linen p-8" style={{ borderRadius: 0 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <Field label="Brand Name" value={form.name} onChange={(v) => set("name", v)} />
+          <Field label="Tagline" value={form.tagline} onChange={(v) => set("tagline", v)} />
+          <div className="sm:col-span-2 flex flex-col">
+            <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Description</label>
+            <textarea
+              rows={4}
+              value={form.description ?? ""}
+              onChange={(e) => set("description", e.target.value)}
+              className="border-b border-linen focus:border-navy outline-none bg-transparent py-2 w-full text-ink text-sm resize-y"
+              style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Status</label>
+            <select
+              value={form.status}
+              onChange={(e) => set("status", e.target.value as BrandStatus)}
+              className={inputClass}
+              style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
+            >
+              <option value="in_development">In Development</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <Field label="Live URL" value={form.live_url} onChange={(v) => set("live_url", v)} type="url" placeholder="https://" />
+          <Field label="Public One-Liner" value={form.public_one_liner} onChange={(v) => set("public_one_liner", v)} />
+          <Field label="Public Sort Order" value={form.public_sort_order} onChange={(v) => set("public_sort_order", Number(v))} type="number" />
+
+          {/* Show on Public Site toggle */}
+          <div
+            className={`sm:col-span-2 flex items-center justify-between gap-4 px-5 py-4 border ${
+              !canPublish
+                ? "border-linen bg-gray-50 opacity-60"
+                : form.show_on_public_site
+                  ? "border-green-300 bg-green-50"
+                  : "border-linen bg-white"
+            }`}
+            style={{ borderRadius: 0 }}
           >
-            {toast.message}
-          </p>
-        )}
+            <div className="flex flex-col gap-0.5">
+              <span
+                className="text-sm font-semibold text-ink"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                Show on public site
+              </span>
+              {canPublish ? (
+                <span
+                  className="text-xs text-steel"
+                  style={{ fontFamily: "var(--font-montserrat)" }}
+                >
+                  When enabled, this brand appears in Partners &amp; Builds on the public website.
+                </span>
+              ) : (
+                <span
+                  className="text-xs text-red-500"
+                  style={{ fontFamily: "var(--font-montserrat)" }}
+                >
+                  Complete these fields first: {missingFields.join(", ")}
+                </span>
+              )}
+            </div>
+            <label className={`relative inline-flex items-center shrink-0 ${canPublish ? "cursor-pointer" : "cursor-not-allowed"}`}>
+              <input
+                type="checkbox"
+                id="identity_show_public"
+                checked={form.show_on_public_site}
+                onChange={(e) => set("show_on_public_site", e.target.checked)}
+                disabled={!canPublish}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-linen peer-checked:bg-navy peer-disabled:opacity-40 rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={handleSave}
+            className="w-full py-3 text-white text-sm font-semibold transition-opacity disabled:opacity-60"
+            style={{ backgroundColor: "#1F2A38", fontFamily: "var(--font-inter)", borderRadius: 0 }}
+          >
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+          {toast && (
+            <p
+              className={`mt-2 text-sm text-center ${toast.type === "success" ? "text-green-600" : "text-red-500"}`}
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              {toast.message}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

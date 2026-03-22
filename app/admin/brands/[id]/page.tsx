@@ -12,7 +12,7 @@ import {
   BrandLogosEditor,
   BrandCardFields,
 } from "@/components/admin/BrandEditor";
-import type { Brand } from "@/lib/types";
+import type { Brand, BrandColour } from "@/lib/types";
 
 const tabTriggerClass =
   "px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-navy data-[state=active]:text-navy data-[state=inactive]:border-transparent data-[state=inactive]:text-steel hover:text-navy";
@@ -24,22 +24,23 @@ export default function BrandWorkspacePage() {
 
   const supabase = createClient();
   const [brand, setBrand] = useState<Brand | null>(null);
+  const [brandColours, setBrandColours] = useState<BrandColour[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     async function load() {
-      const { data, error } = await supabase
-        .from("brands")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const [{ data, error }, { data: colours }] = await Promise.all([
+        supabase.from("brands").select("*").eq("id", id).single(),
+        supabase.from("brand_colours").select("*").eq("brand_id", id),
+      ]);
 
       if (error || !data) {
         setNotFound(true);
       } else {
         setBrand(data as Brand);
+        setBrandColours((colours as BrandColour[]) ?? []);
       }
       setLoading(false);
     }
@@ -124,7 +125,11 @@ export default function BrandWorkspacePage() {
           </div>
 
           <Tabs.Content value="identity">
-            <BrandIdentityForm brand={brand} onSaved={setBrand} />
+            <BrandIdentityForm
+              brand={brand}
+              onSaved={setBrand}
+              hasPrimaryColour={brandColours.some((c) => c.role === "primary")}
+            />
           </Tabs.Content>
 
           <Tabs.Content value="card">
