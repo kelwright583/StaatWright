@@ -31,7 +31,7 @@ export default function BookkeeperPage() {
   useEffect(() => {
     createClient()
       .auth.getUser()
-      .then(({ data: { user } }) => {
+      .then(({ data: { user } }: { data: { user: { id: string; email?: string } | null } }) => {
         if (!user) {
           window.location.href = "/bookkeeper/login";
         } else {

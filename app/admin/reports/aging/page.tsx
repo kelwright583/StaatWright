@@ -82,13 +82,16 @@ export default function AgingPage() {
         .not("status", "eq", "paid")
         .not("status", "eq", "cancelled");
 
-      if (!invData || invData.length === 0) {
+      type RawInv = { id: string; number: string | null; partner_id: string | null; status: string; total: number | null; currency: string | null; created_at: string; due_date: string | null; partners: { company_name?: string } | null };
+      const typedInvData = (invData ?? []) as RawInv[];
+
+      if (typedInvData.length === 0) {
         setInvoices([]);
         setLoading(false);
         return;
       }
 
-      const invoiceIds = invData.map((inv) => inv.id);
+      const invoiceIds = typedInvData.map((inv) => inv.id);
 
       // Fetch payments
       const { data: paymentsData } = await supabase
@@ -103,22 +106,19 @@ export default function AgingPage() {
         .eq("type", "credit_note")
         .in("linked_document_id", invoiceIds);
 
-      // Build payment totals map
       const paymentMap: Record<string, number> = {};
-      for (const p of paymentsData ?? []) {
+      for (const p of (paymentsData ?? []) as { document_id: string; amount: number | null }[]) {
         paymentMap[p.document_id] = (paymentMap[p.document_id] ?? 0) + (p.amount ?? 0);
       }
 
-      // Build credit note totals map
       const creditMap: Record<string, number> = {};
-      for (const cn of creditData ?? []) {
+      for (const cn of (creditData ?? []) as { linked_document_id: string | null; total: number | null }[]) {
         if (cn.linked_document_id) {
           creditMap[cn.linked_document_id] = (creditMap[cn.linked_document_id] ?? 0) + (cn.total ?? 0);
         }
       }
 
-      // Build aging rows
-      const rows: AgingInvoice[] = invData.map((inv) => {
+      const rows: AgingInvoice[] = typedInvData.map((inv) => {
         const paid = (paymentMap[inv.id] ?? 0) + (creditMap[inv.id] ?? 0);
         const total = inv.total ?? 0;
         const outstanding = Math.max(0, total - paid);

@@ -111,8 +111,10 @@ export default function BalanceSheetPage() {
       .not("status", "eq", "cancelled")
       .lte("created_at", asAt + "T23:59:59");
 
-    // ── Fetch payments against those invoices ──────────────────────────────────
-    const invoiceIds = (allInvoices ?? []).map((i) => i.id);
+    type BSInvoice = { id: string; total: number | null; currency: string | null; created_at: string; due_date: string | null };
+    const typedInvoices = (allInvoices ?? []) as BSInvoice[];
+
+    const invoiceIds = typedInvoices.map((i) => i.id);
     let paymentsByInvoice: Record<string, number> = {};
     let creditsByInvoice: Record<string, number> = {};
 
@@ -123,7 +125,7 @@ export default function BalanceSheetPage() {
         .in("document_id", invoiceIds)
         .lte("payment_date", asAt);
 
-      for (const p of pmts ?? []) {
+      for (const p of (pmts ?? []) as { document_id: string; amount: number | null }[]) {
         paymentsByInvoice[p.document_id] = (paymentsByInvoice[p.document_id] ?? 0) + (p.amount ?? 0);
       }
 
@@ -134,14 +136,14 @@ export default function BalanceSheetPage() {
         .in("linked_document_id", invoiceIds)
         .lte("created_at", asAt + "T23:59:59");
 
-      for (const cn of cns ?? []) {
+      for (const cn of (cns ?? []) as { linked_document_id: string | null; total: number | null }[]) {
         if (cn.linked_document_id) {
           creditsByInvoice[cn.linked_document_id] = (creditsByInvoice[cn.linked_document_id] ?? 0) + (cn.total ?? 0);
         }
       }
     }
 
-    const totalAR = (allInvoices ?? []).reduce((s, inv) => {
+    const totalAR = typedInvoices.reduce((s, inv) => {
       const outstanding = Math.max(0, (inv.total ?? 0) - (paymentsByInvoice[inv.id] ?? 0) - (creditsByInvoice[inv.id] ?? 0));
       return s + outstanding;
     }, 0);
@@ -153,14 +155,14 @@ export default function BalanceSheetPage() {
       .select("amount")
       .lte("payment_date", asAt);
 
-    const totalPaymentsReceived = (allPayments ?? []).reduce((s, p) => s + (p.amount ?? 0), 0);
+    const totalPaymentsReceived = (allPayments ?? []).reduce((s: number, p: { amount: number | null }) => s + (p.amount ?? 0), 0);
 
     const { data: allExpenses } = await supabase
       .from("expenses")
       .select("amount_incl_vat, date")
       .lte("date", asAt);
 
-    const totalExpensesAll = (allExpenses ?? []).reduce((s, e) => s + (e.amount_incl_vat ?? 0), 0);
+    const totalExpensesAll = (allExpenses ?? []).reduce((s: number, e: { amount_incl_vat: number | null }) => s + (e.amount_incl_vat ?? 0), 0);
     setCashEstimate(Math.max(0, totalPaymentsReceived - totalExpensesAll));
 
     // ── Recent expenses (last 30 days relative to asAt) for AP proxy ──────────
@@ -172,7 +174,7 @@ export default function BalanceSheetPage() {
       .gte("date", thirtyDaysAgo.toISOString().slice(0, 10))
       .lte("date", asAt);
 
-    setRecentExpenses((recentExp ?? []).reduce((s, e) => s + (e.amount_incl_vat ?? 0), 0));
+    setRecentExpenses((recentExp ?? []).reduce((s: number, e: { amount_incl_vat: number | null }) => s + (e.amount_incl_vat ?? 0), 0));
 
     // ── VAT payable: 15/115 of outstanding invoices ────────────────────────────
     const vatEstimate = totalAR * (15 / 115);
@@ -185,7 +187,7 @@ export default function BalanceSheetPage() {
       .lte("date", asAt);
 
     let capital = 0, sweat = 0, loans = 0;
-    for (const e of equityData ?? []) {
+    for (const e of (equityData ?? []) as { entry_type: string; amount: number | null }[]) {
       if (e.entry_type === "capital_injection") capital += e.amount ?? 0;
       if (e.entry_type === "sweat_equity") sweat += e.amount ?? 0;
       if (e.entry_type === "loan_in") loans += e.amount ?? 0;
@@ -201,7 +203,7 @@ export default function BalanceSheetPage() {
       .select("amount")
       .lte("date", asAt);
 
-    setDrawings((drawingsData ?? []).reduce((s, d) => s + (d.amount ?? 0), 0));
+    setDrawings((drawingsData ?? []).reduce((s: number, d: { amount: number | null }) => s + (d.amount ?? 0), 0));
 
     // ── Retained earnings: paid invoices total - total expenses ───────────────
     const { data: paidInvoices } = await supabase
@@ -211,7 +213,7 @@ export default function BalanceSheetPage() {
       .eq("status", "paid")
       .lte("created_at", asAt + "T23:59:59");
 
-    const totalPaidInvoices = (paidInvoices ?? []).reduce((s, i) => s + (i.total ?? 0), 0);
+    const totalPaidInvoices = (paidInvoices ?? []).reduce((s: number, i: { total: number | null }) => s + (i.total ?? 0), 0);
     setRetainedEarnings(totalPaidInvoices - totalExpensesAll);
 
     setLoading(false);

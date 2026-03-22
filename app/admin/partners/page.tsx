@@ -63,7 +63,7 @@ export default async function PartnersPage({ searchParams }: Props) {
     .in("status", ["sent", "overdue"]);
 
   const outstandingByPartner: Record<string, number> = {};
-  for (const d of outstandingData ?? []) {
+  for (const d of (outstandingData ?? []) as { partner_id: string | null; total: number | null }[]) {
     if (d.partner_id) {
       outstandingByPartner[d.partner_id] = (outstandingByPartner[d.partner_id] ?? 0) + (d.total ?? 0);
     }
