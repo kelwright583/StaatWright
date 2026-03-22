@@ -8,31 +8,35 @@ import { createClient } from "@/lib/supabase/client";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [checked, setChecked] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    if (pathname === "/admin/login") {
-      setChecked(true);
-      return;
-    }
+    const supabase = createClient();
 
-    createClient()
-      .auth.getUser()
-      .then(({ data: { user } }) => {
-        if (!user) {
-          router.replace("/admin/login");
-        } else {
-          setChecked(true);
-        }
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthed(!!session?.user);
+      setReady(true);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (ready && !authed && pathname !== "/admin/login") {
+      router.replace("/admin/login");
+    }
+  }, [ready, authed, pathname, router]);
 
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  if (!checked) return null;
+  if (!ready || !authed) return null;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FAFAF9" }}>
