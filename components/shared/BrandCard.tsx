@@ -7,47 +7,17 @@ interface Props {
   brand: BrandCardData;
 }
 
-const BRAND_META_FALLBACK: Record<string, { accent: string; bg?: string; bgColor?: string; headingFont: string; bodyFont: string; headingStyle?: "normal" | "italic"; overlay: number; topOverlay?: number }> = {
-  "Concierge Styled": {
-    accent: "#cc8638", bg: "/brands/concierge-hero.jpg",
-    headingFont: "'Playfair Display', Georgia, serif", bodyFont: "var(--font-inter), sans-serif",
-    headingStyle: "italic", overlay: 0.82, topOverlay: 0.15,
-  },
-  "In the Absence of a Soapbox": {
-    accent: "#C07B2A", bg: "/brands/soapbox-hero.png",
-    headingFont: "'Playfair Display', Georgia, serif", bodyFont: "'DM Sans', sans-serif",
-    headingStyle: "italic", overlay: 0.78, topOverlay: 0.2,
-  },
-  "KZN Youth Choir": {
-    accent: "#1E3A8A", bg: "/brands/kznchoir-hero.jpg",
-    headingFont: "var(--font-inter), sans-serif", bodyFont: "var(--font-inter), sans-serif",
-    overlay: 0.72, topOverlay: 0.3,
-  },
-  "AirShot Base": {
-    accent: "#8E44A3", bg: "/brands/airshot-base.png",
-    headingFont: "'Space Grotesk', var(--font-inter), sans-serif", bodyFont: "var(--font-inter), sans-serif",
-    overlay: 0.65, topOverlay: 0.1,
-  },
-  "Refrag": {
-    accent: "#C72A00", bgColor: "#1e1f26",
-    headingFont: "var(--font-inter), sans-serif", bodyFont: "var(--font-inter), sans-serif",
-    overlay: 0,
-  },
-};
-
 export default function BrandCard({ brand }: Props) {
   const primaryColour = brand.brand_colours?.find((c) => c.role === "primary");
-  const fallback = BRAND_META_FALLBACK[brand.name];
 
-  const accent = primaryColour?.hex ?? fallback?.accent ?? "#5C6E81";
-  const headingFont = brand.heading_font ?? fallback?.headingFont ?? "var(--font-inter), sans-serif";
-  const bodyFont = brand.body_font ?? fallback?.bodyFont ?? "var(--font-montserrat), sans-serif";
-  const headingStyle = fallback?.headingStyle ?? "normal";
-
-  const heroImage = brand.hero_image_path ?? fallback?.bg;
-  const bgColor = brand.card_bg_color ?? fallback?.bgColor ?? "#1F2A38";
-  const overlay = fallback?.overlay ?? (heroImage ? 0.7 : 0);
-  const topOverlay = fallback?.topOverlay ?? 0;
+  const accent       = primaryColour?.hex ?? "#5C6E81";
+  const headingFont  = brand.heading_font ?? "var(--font-inter), sans-serif";
+  const bodyFont     = brand.body_font   ?? "var(--font-montserrat), sans-serif";
+  const headingStyle = "normal" as const;
+  const heroImage    = brand.hero_image_path ?? undefined;
+  const bgColor      = brand.card_bg_color ?? "#1F2A38";
+  const overlay      = heroImage ? 0.7 : 0;
+  const topOverlay   = 0;
 
   const gradientOverlay = overlay > 0
     ? `linear-gradient(to top, rgba(0,0,0,${overlay}) 0%, rgba(0,0,0,${overlay * 0.4}) 55%, rgba(0,0,0,${topOverlay}) 100%)`

@@ -134,20 +134,37 @@ export function BrandIdentityForm({ brand, onSaved }: { brand: Brand; onSaved: (
         <Field label="Live URL" value={form.live_url} onChange={(v) => set("live_url", v)} type="url" placeholder="https://" />
         <Field label="Public One-Liner" value={form.public_one_liner} onChange={(v) => set("public_one_liner", v)} />
         <Field label="Public Sort Order" value={form.public_sort_order} onChange={(v) => set("public_sort_order", Number(v))} type="number" />
-        <div className="flex items-center gap-3 pt-4">
-          <input
-            type="checkbox"
-            id="identity_show_public"
-            checked={form.show_on_public_site}
-            onChange={(e) => set("show_on_public_site", e.target.checked)}
-            className="w-4 h-4 accent-navy"
-          />
-          <label
-            htmlFor="identity_show_public"
-            className="text-sm text-ink"
-            style={{ fontFamily: "var(--font-montserrat)" }}
-          >
-            Show on public site
+        <div
+          className={`sm:col-span-2 flex items-center justify-between gap-4 px-5 py-4 border ${
+            form.show_on_public_site ? "border-green-300 bg-green-50" : "border-linen bg-white"
+          }`}
+          style={{ borderRadius: 0 }}
+        >
+          <div className="flex flex-col gap-0.5">
+            <span
+              className="text-sm font-semibold text-ink"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              Show on public site
+            </span>
+            <span
+              className="text-xs text-steel"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              When ticked, this brand appears in the Partners &amp; Builds section of the
+              public website. All card visuals (image, colours, fonts) must be configured
+              in the other tabs before publishing.
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              id="identity_show_public"
+              checked={form.show_on_public_site}
+              onChange={(e) => set("show_on_public_site", e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-linen peer-checked:bg-navy rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
           </label>
         </div>
       </div>
