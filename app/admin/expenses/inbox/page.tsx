@@ -92,6 +92,9 @@ export default function ExpenseInboxPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Categories
+  const [categories, setCategories] = useState<{ id: string; name: string; parent_category: string | null }[]>([]);
+
   // Review form state
   const [formVendor, setFormVendor] = useState("");
   const [formDate, setFormDate] = useState("");
@@ -107,12 +110,14 @@ export default function ExpenseInboxPage() {
 
   const loadItems = useCallback(async () => {
     setLoading(true);
-    const [{ data: inboxData }, { data: { user: u } }] = await Promise.all([
+    const [{ data: inboxData }, { data: { user: u } }, { data: catData }] = await Promise.all([
       supabase.from("expense_inbox").select("*").order("created_at", { ascending: false }),
       supabase.auth.getUser(),
+      supabase.from("expense_categories").select("id, name, parent_category").eq("is_archived", false).order("sort_order", { ascending: true }),
     ]);
     setItems((inboxData as ExpenseInboxRow[]) ?? []);
     setUser(u ? { email: u.email ?? "" } : null);
+    setCategories((catData ?? []) as { id: string; name: string; parent_category: string | null }[]);
     setLoading(false);
   }, [supabase]);
 
@@ -544,14 +549,17 @@ export default function ExpenseInboxPage() {
                     {/* Category */}
                     <label className="flex flex-col gap-1">
                       <span className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Category</span>
-                      <input
-                        type="text"
+                      <select
                         value={formCategory}
                         onChange={(e) => setFormCategory(e.target.value)}
                         className={inputClass}
                         style={{ fontFamily: "var(--font-montserrat)", borderRadius: 0 }}
-                        placeholder="e.g. Software"
-                      />
+                      >
+                        <option value="">— Select —</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
                     </label>
 
                     {/* Notes */}

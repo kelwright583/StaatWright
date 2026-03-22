@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Bill, ServiceProvider } from "@/lib/types";
@@ -44,8 +44,20 @@ export default function BillBuilder({ ventures, providers, initialBill, defaultV
   const [vatAmount, setVatAmount] = useState(initialBill?.vat_amount?.toFixed(2) ?? "");
   const [totalAmount, setTotalAmount] = useState(initialBill?.total_amount?.toFixed(2) ?? "");
   const [exchangeRate, setExchangeRate] = useState(initialBill?.exchange_rate?.toFixed(4) ?? "");
+  const [category, setCategory] = useState(initialBill?.category ?? "");
   const [notes, setNotes] = useState(initialBill?.notes ?? "");
   const [invoicePath, setInvoicePath] = useState(initialBill?.invoice_path ?? "");
+
+  // Load expense categories
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    supabase
+      .from("expense_categories")
+      .select("id, name")
+      .eq("is_archived", false)
+      .order("sort_order", { ascending: true })
+      .then((result) => setCategories((result.data ?? []) as { id: string; name: string }[]));
+  }, [supabase]);
 
   // OCR + upload state
   const [dragging, setDragging] = useState(false);
@@ -204,6 +216,7 @@ export default function BillBuilder({ ventures, providers, initialBill, defaultV
       exchange_rate: exchangeRate ? parseFloat(exchangeRate) : null,
       zar_equivalent: exchangeRate && totalAmount ? parseFloat(totalAmount) * parseFloat(exchangeRate) : null,
       invoice_path: invoicePath || null,
+      category: category || null,
       notes: notes.trim() || null,
     };
 
@@ -385,6 +398,15 @@ export default function BillBuilder({ ventures, providers, initialBill, defaultV
           <label className="flex flex-col gap-1 sm:col-span-2">
             <span className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Description</span>
             <input value={description} onChange={e => setDescription(e.target.value)} className={inputClass} placeholder="What is this bill for?" style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }} />
+          </label>
+
+          {/* Category */}
+          <label className="flex flex-col gap-1">
+            <span className={labelClass} style={{ fontFamily: "var(--font-montserrat)" }}>Category</span>
+            <select value={category} onChange={e => setCategory(e.target.value)} className={inputClass} style={{ borderRadius: 0, fontFamily: "var(--font-montserrat)" }}>
+              <option value="">— Select category —</option>
+              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
           </label>
         </div>
       </div>

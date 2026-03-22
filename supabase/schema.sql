@@ -581,6 +581,7 @@ create table if not exists public.bills (
   zar_equivalent      numeric(14,2),
   invoice_path        text,
   ocr_raw             jsonb,
+  category            text,
   notes               text,
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()

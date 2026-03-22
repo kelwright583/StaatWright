@@ -176,13 +176,23 @@ export interface DocumentEvent {
 // ─── Expenses ────────────────────────────────────────────────────────────────
 
 export type ExpenseCategoryLegacy =
-  | "Software"
-  | "Hosting"
-  | "Travel"
-  | "Subcontractors"
-  | "Equipment"
-  | "Office"
-  | "Other";
+  | "Cost of Sales / COGS"
+  | "Employee & Payroll Costs"
+  | "Premises & Occupancy"
+  | "Motor Vehicle & Travel"
+  | "Communication & Technology"
+  | "Marketing & Advertising"
+  | "Professional & Legal Services"
+  | "Repairs & Maintenance"
+  | "Office & General Administration"
+  | "Depreciation & Capital Allowances"
+  | "Entertainment & Client Costs"
+  | "Training & Staff Development"
+  | "Insurance"
+  | "Interest & Finance Charges"
+  | "Donations"
+  | "Home Office Expenses"
+  | "Sundry & Miscellaneous";
 
 export interface Expense {
   id: string;
@@ -429,6 +439,7 @@ export interface Bill {
   zar_equivalent: number | null;
   invoice_path: string | null;
   ocr_raw: Record<string, unknown> | null;
+  category: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
