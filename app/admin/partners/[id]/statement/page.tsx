@@ -70,7 +70,15 @@ export default function PartnerStatementPage() {
         .not("status", "eq", "cancelled")
         .order("created_at", { ascending: true });
 
-      const invoices = invoicesData ?? [];
+      interface StatementInvoice {
+        id: string;
+        number: string | null;
+        created_at: string | null;
+        due_date: string | null;
+        total: number | null;
+        status: string | null;
+      }
+      const invoices: StatementInvoice[] = (invoicesData ?? []) as StatementInvoice[];
 
       if (invoices.length === 0) {
         setRows([]);
@@ -113,7 +121,7 @@ export default function PartnerStatementPage() {
         });
       }
 
-      for (const pmt of paymentsData ?? []) {
+      for (const pmt of (paymentsData ?? []) as { id: string; document_id: string; amount: number | null; payment_date: string | null; notes: string | null }[]) {
         const inv = invoices.find((i) => i.id === pmt.document_id);
         events.push({
           date: pmt.payment_date?.slice(0, 10) ?? "",
@@ -124,7 +132,7 @@ export default function PartnerStatementPage() {
         });
       }
 
-      for (const cn of creditNotesData ?? []) {
+      for (const cn of (creditNotesData ?? []) as { id: string; number: string | null; created_at: string | null; total: number | null; linked_document_id: string | null }[]) {
         events.push({
           date: cn.created_at?.slice(0, 10) ?? "",
           reference: cn.number ?? `CN-${cn.id.slice(0, 8)}`,
