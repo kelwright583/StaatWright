@@ -16,9 +16,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     createClient()
-      .auth.getUser()
-      .then(({ data: { user } }) => {
-        if (!user) {
+      .auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!session?.user) {
           window.location.href = "/admin/login";
         } else {
           setChecked(true);

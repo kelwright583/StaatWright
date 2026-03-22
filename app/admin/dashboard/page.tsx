@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import AdminTopBar from "@/components/admin/AdminTopBar";
@@ -62,7 +62,7 @@ async function markPaidAction(formData: FormData) {
   "use server";
   const supabase = await createClient();
   const id = formData.get("id") as string;
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   await supabase.from("documents").update({ status: "paid", updated_at: new Date().toISOString() }).eq("id", id);
   await supabase.from("document_events").insert({
     document_id: id,
@@ -76,9 +76,7 @@ async function markPaidAction(formData: FormData) {
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   // Outstanding invoices: sent, overdue, or partially_paid
   const { data: outstandingInvoices } = await supabase

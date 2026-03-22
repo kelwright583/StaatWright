@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
 import type { Partner, CompanySettings } from "@/lib/types";
@@ -11,7 +11,7 @@ export default async function NewQuotePage({ searchParams }: Props) {
   const params = await searchParams;
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [{ data: venturesData }, { data: clientsData }, { data: settingsData }] = await Promise.all([
     supabase.from("partners").select("*").eq("type", "venture").order("company_name"),

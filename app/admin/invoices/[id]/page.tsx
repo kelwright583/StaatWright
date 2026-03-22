@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
 import PartialPayments from "@/components/admin/PartialPayments";
@@ -22,7 +22,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [
     { data: docData },

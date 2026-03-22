@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentFilters from "@/components/admin/DocumentFilters";
 import Link from "next/link";
@@ -45,7 +45,7 @@ export default async function QuotesPage({ searchParams }: Props) {
   const params = await searchParams;
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [{ data: clientsData }, { data: venturesData }] = await Promise.all([
     supabase.from("partners").select("id, company_name").eq("type", "client").order("company_name"),

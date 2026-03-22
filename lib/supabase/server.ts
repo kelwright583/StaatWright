@@ -23,3 +23,10 @@ export async function createClient() {
     }
   );
 }
+
+/** Returns the current user from the session cookie — no network call. */
+export async function getSessionUser() {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user ?? null;
+}

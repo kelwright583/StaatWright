@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import DocumentBuilder from "@/components/admin/DocumentBuilder";
 import LinkedInvoice from "@/components/admin/LinkedInvoice";
@@ -14,7 +14,7 @@ export default async function CreditNoteDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [
     { data: docData },

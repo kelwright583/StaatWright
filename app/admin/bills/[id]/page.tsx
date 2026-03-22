@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import BillBuilder from "@/components/admin/BillBuilder";
 import Link from "next/link";
@@ -23,7 +23,7 @@ function statusStyle(status: BillStatus) {
 export default async function BillDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [{ data: bill }, { data: ventures }, { data: providers }] = await Promise.all([
     supabase.from("bills").select("*, venture:partners(company_name), service_provider:service_providers(*)").eq("id", id).single(),

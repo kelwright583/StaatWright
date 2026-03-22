@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import Link from "next/link";
 import type { ServiceProvider } from "@/lib/types";
 
 export default async function ServiceProvidersPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const { data } = await supabase
     .from("service_providers")

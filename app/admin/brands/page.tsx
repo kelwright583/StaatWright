@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import AdminTopBar from "@/components/admin/AdminTopBar";
 import Link from "next/link";
 import type { Brand, BrandStatus } from "@/lib/types";
@@ -26,9 +26,7 @@ function StatusBadge({ status }: { status: BrandStatus }) {
 export default async function BrandsPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const { data: brands } = await supabase
     .from("brands")
